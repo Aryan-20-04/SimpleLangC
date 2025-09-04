@@ -1,10 +1,4 @@
-let x = 13;
-let y = 15;  
-print x;
-print y;
-print "x + y : " x + y;
-print "Hello World";
-print r"C:\Users\Projects";
-print """Line1
-Line2
-Line3""";
+let x = 10;
+if(x==10) {
+    print "True";
+}

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <ctype.h>
 #include "lexer.h"
 #include "interpreter.h"
 
@@ -28,18 +29,18 @@ int main()
         if (source[i] == '\r')
             source[i] = '\n';
     }
-    printf("Program Staring....\n");
     const char *ptr = source;
-    while (1)
+    while (*ptr)
     {
-        const char *save = ptr;
-        Token peek = getNextToken(&ptr);
-        if (peek.type == TOKEN_EOF)
+        while (*ptr && isspace(*ptr))
+        {
+            ptr++;
+        }
+        if (*ptr == '\0')
             break;
-        ptr = save;
+
         execStatement(&ptr);
     }
-    printf("Program Completed.\n");
 
     free(source);
     return 0;

@@ -2,44 +2,25 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
+#include "lexer.h"
 
-enum Tokenizer
-{
-    TOKEN_NUM,
-    TOKEN_ID,
-    TOKEN_PRINT,
-    TOKEN_LET,
-    TOKEN_EQUAL,
-    TOKEN_PLUS,
-    TOKEN_SUB,
-    TOKEN_SEMI,
-    TOKEN_STR,
-    TOKEN_EOF
-};
-
-typedef struct
-{
-    enum Tokenizer type;
-    char text[64];
-} Token;
 Token getNextToken(const char **src)
 {
     static int call_count = 0;
     call_count++;
 
+    // Skip whitespace
     while (**src && isspace(**src))
         (*src)++;
 
     if (**src == '\0')
     {
-
         return (Token){TOKEN_EOF, ""};
     }
 
     // Raw string: r"..." - CHECK THIS FIRST before identifiers
     if (**src == 'r' && *(*src + 1) == '"')
     {
-
         (*src) += 2; // Skip 'r"'
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
@@ -54,7 +35,6 @@ Token getNextToken(const char **src)
     // Triple-quoted string: """...""" - CHECK BEFORE normal strings
     if (**src == '"' && *(*src + 1) == '"' && *(*src + 2) == '"')
     {
-
         (*src) += 3; // Skip opening """
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
@@ -74,7 +54,6 @@ Token getNextToken(const char **src)
     // Normal string: "..."
     if (**src == '"')
     {
-
         (*src)++; // Skip opening quote
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
@@ -117,20 +96,29 @@ Token getNextToken(const char **src)
     // Numbers
     if (isdigit(**src))
     {
+        const char *start = *src;
+        while (isdigit(**src))
+            (*src)++;
+        if (**src == '.')
+        {
+            (*src)++;
+            while (isdigit(**src))
+                (*src)++;
+        }
+        int len = *src - start;
+        if (len >= 64)
+            len = 63;
 
-        Token tk = {TOKEN_NUM, ""};
-        size_t i = 0;
-        while (isdigit(**src) && i < sizeof(tk.text) - 1)
-            tk.text[i++] = *(*src)++;
-        tk.text[i] = '\0';
-
+        Token tk;
+        tk.type = TOKEN_NUM;
+        strncpy(tk.text, start, len);
+        tk.text[len] = '\0';
         return tk;
     }
 
     // Identifiers / keywords
     if (isalpha(**src))
     {
-
         Token tk = {TOKEN_ID, ""};
         size_t i = 0;
         while (isalnum(**src) && i < sizeof(tk.text) - 1)
@@ -141,40 +129,84 @@ Token getNextToken(const char **src)
             tk.type = TOKEN_PRINT;
         else if (strcmp(tk.text, "let") == 0)
             tk.type = TOKEN_LET;
+        else if (strcmp(tk.text, "if") == 0)
+            tk.type = TOKEN_IF;
         return tk;
     }
 
-    // Symbols
-
-    if (**src == '+')
+    // Multi-char operations
+    if (**src == '=' && *(*src + 1) == '=')
     {
-
-        (*src)++;
-
-        return (Token){TOKEN_PLUS, "+"};
+        (*src) += 2;
+        return (Token){TOKEN_EQ, "=="};
     }
-    else if (**src == '-')
+    if (**src == '!' && *(*src + 1) == '=')
     {
-
-        (*src)++;
-
-        return (Token){TOKEN_SUB, "-"};
+        (*src) += 2;
+        return (Token){TOKEN_NE, "!="};
     }
-    else if (**src == '=')
+    if (**src == '<' && *(*src + 1) == '=')
     {
-
-        (*src)++;
-        return (Token){TOKEN_EQUAL, "="};
+        (*src) += 2;
+        return (Token){TOKEN_LE, "<="};
     }
-    else if (**src == ';')
+    if (**src == '>' && *(*src + 1) == '=')
     {
-
-        (*src)++;
-        return (Token){TOKEN_SEMI, ";"};
+        (*src) += 2;
+        return (Token){TOKEN_GE, ">="};
     }
 
-    // Unknown character, skip
-
+    // Single character tokens
+    char ch = **src;
     (*src)++;
-    return (Token){TOKEN_EOF, ""};
+
+    Token tk = {TOKEN_EOF, ""};
+    tk.text[0] = ch;
+    tk.text[1] = '\0';
+
+    switch (ch)
+    {
+    case '+':
+        tk.type = TOKEN_PLUS;
+        break;
+    case '-':
+        tk.type = TOKEN_SUB;
+        break;
+    case '*':
+        tk.type = TOKEN_MUL;
+        break;
+    case '/':
+        tk.type = TOKEN_DIV;
+        break;
+    case '(':
+        tk.type = TOKEN_LPAREN;
+        break;
+    case ')':
+        tk.type = TOKEN_RPAREN;
+        break;
+    case ';':
+        tk.type = TOKEN_SEMI;
+        break;
+    case '=':
+        tk.type = TOKEN_EQUAL;
+        break;
+    case '<':
+        tk.type = TOKEN_LT;
+        break;
+    case '>':
+        tk.type = TOKEN_GT;
+        break;
+    case '{':
+        tk.type = TOKEN_LBRACE;
+        break;
+    case '}':
+        tk.type = TOKEN_RBRACE;
+        break;
+
+    default:
+        // Unknown character, return EOF token
+        return (Token){TOKEN_EOF, ""};
+    }
+
+    return tk;
 }
