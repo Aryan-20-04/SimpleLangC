@@ -131,6 +131,16 @@ Token getNextToken(const char **src)
             tk.type = TOKEN_LET;
         else if (strcmp(tk.text, "if") == 0)
             tk.type = TOKEN_IF;
+        else if (strcmp(tk.text, "else") == 0)
+            tk.type = TOKEN_ELSE;
+        else if (strcmp(tk.text, "elseif") == 0)
+            tk.type = TOKEN_ELSEIF;
+        else if (strcmp(tk.text, "for") == 0)
+            tk.type = TOKEN_FOR;
+        else if (strcmp(tk.text, "in") == 0)
+            tk.type = TOKEN_IN;
+        else if (strcmp(tk.text, "range") == 0)
+            tk.type = TOKEN_RANGE;
         return tk;
     }
 
@@ -201,6 +211,9 @@ Token getNextToken(const char **src)
         break;
     case '}':
         tk.type = TOKEN_RBRACE;
+        break;
+    case ',':
+        tk.type = TOKEN_COMMA;
         break;
 
     default:

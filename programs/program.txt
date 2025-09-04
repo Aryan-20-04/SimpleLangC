@@ -1,4 +1,11 @@
 let x = 10;
-if(x==10) {
-    print "True";
+let y= 5;
+if (x<y){
+    print "X Wins";
+}
+elseif(x>y){
+    print "Y Wins";
+}
+else{
+    print "None";
 }

@@ -1,53 +1,41 @@
-#include <stdio.h>
-#include <string.h>
 #include "symbol.h"
+#include <stdio.h>   // for printf
+#include <string.h>  // for strcmp, strncpy
 
-typedef struct
+SymEntry table[MAX_SYMBOLS];
+int table_count = 0;
+
+void setVar(const char *name, double value)
 {
-    char name[64];
-    double val;
-} Variable;
-
-#define MAX_VARS 100
-static Variable vars[MAX_VARS];
-static int varCount = 0;
-
-void setVar(char *name, double val)
-{
-
-    for (int i = 0; i < varCount; i++)
-    {
-        if (strcmp(vars[i].name, name) == 0)
+    for (int i = 0; i < table_count; ++i)
+        if (strcmp(table[i].name, name) == 0)
         {
-
-            vars[i].val = val;
+            table[i].value = value;
             return;
         }
-    }
-    if (varCount < MAX_VARS)
+
+    if (table_count < MAX_SYMBOLS)
     {
-        strncpy(vars[varCount].name, name, sizeof(vars[varCount].name) - 1);
-        vars[varCount].name[sizeof(vars[varCount].name) - 1] = '\0';
-        vars[varCount].val = val;
-        varCount++;
+        strncpy(table[table_count].name, name, sizeof(table[table_count].name) - 1);
+        table[table_count].name[sizeof(table[table_count].name) - 1] = '\0';
+        table[table_count].value = value;
+        table_count++;
     }
     else
     {
-        printf("Error: Too many variables\n");
+        printf("Error: symbol table full\n");
     }
 }
 
 double getVar(const char *name)
 {
-
-    for (int i = 0; i < varCount; i++)
-    {
-        if (strcmp(vars[i].name, name) == 0)
-        {
-
-            return vars[i].val;
-        }
-    }
-    printf("Error: variable '%s' not found\n", name);
+    for (int i = 0; i < table_count; ++i)
+        if (strcmp(table[i].name, name) == 0)
+            return table[i].value;
     return 0.0;
+}
+
+void clearSymbols(void)
+{
+    table_count = 0;
 }

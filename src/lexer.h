@@ -8,6 +8,11 @@ typedef enum
     TOKEN_PRINT,
     TOKEN_LET,
     TOKEN_IF,    // New: if keyword
+    TOKEN_ELSE,
+    TOKEN_ELSEIF,
+    TOKEN_FOR,
+    TOKEN_IN,
+    TOKEN_RANGE,
     TOKEN_EQUAL, // = (assignment)
     TOKEN_EQ,    // New: == (comparison)
     TOKEN_NE,    // New: != (not equal)
@@ -18,6 +23,7 @@ typedef enum
     TOKEN_PLUS,
     TOKEN_SUB,
     TOKEN_SEMI,
+    TOKEN_COMMA,
     TOKEN_STR,
     TOKEN_MUL,
     TOKEN_DIV,

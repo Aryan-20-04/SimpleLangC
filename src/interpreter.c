@@ -1,344 +1,143 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 #include "interpreter.h"
 #include "symbol.h"
+#include "ast.h"
 
-extern Token getNextToken(const char **src);
+#define OUTPUT_BUFFER_SIZE (1024 * 1024)
+static char outputBuffer[OUTPUT_BUFFER_SIZE];
+static int outputPos = 0;
 
-// Forward declarations
-double parseExpression(const char **src);
-double parseTerm(const char **src);
-double parseFactor(const char **src);
-double parseComparison(const char **src);
-void execStatement(const char **src);
-void execBlock(const char **src);
-
-// Parse a primary expression (number, variable, or parenthesized expression)
-double parseFactor(const char **src)
+void flushOutput()
 {
-    Token tk = getNextToken(src);
-
-    if (tk.type == TOKEN_NUM)
+    if (outputPos > 0)
     {
-        return strtod(tk.text, NULL);
-    }
-    else if (tk.type == TOKEN_ID)
-    {
-        return getVar(tk.text);
-    }
-    else if (tk.type == TOKEN_LPAREN)
-    {
-        double val = parseComparison(src); // Allow comparisons in parentheses
-        Token closing = getNextToken(src);
-        if (closing.type != TOKEN_RPAREN)
-        {
-            printf("Syntax Error: Expected ')' after expression\n");
-            return 0;
-        }
-        return val;
-    }
-    else if (tk.type == TOKEN_SUB)
-    {
-        return -parseFactor(src);
-    }
-    else if (tk.type == TOKEN_PLUS)
-    {
-        return parseFactor(src);
-    }
-    else
-    {
-        printf("Syntax Error: Expected number, variable, or '(' but got '%s'\n", tk.text);
-        return 0;
+        fwrite(outputBuffer, 1, outputPos, stdout);
+        outputPos = 0;
     }
 }
 
-double parseTerm(const char **src)
+// ------------------- AST EVALUATION -------------------
+
+double evalExpr(ASTNode *node)
 {
-    double val = parseFactor(src);
+    if (!node)
+        return 0.0;
 
-    while (1)
+    switch (node->type)
     {
-        const char *save = *src;
-        Token op = getNextToken(src);
+    case NODE_NUM:
+        return node->number;
 
-        if (op.type == TOKEN_MUL)
-        {
-            val *= parseFactor(src);
-        }
-        else if (op.type == TOKEN_DIV)
-        {
-            double divisor = parseFactor(src);
-            if (divisor == 0.0)
-            {
-                printf("Runtime Error: Division by zero\n");
-                return 0;
-            }
-            val /= divisor;
-        }
-        else
-        {
-            *src = save;
-            break;
-        }
-    }
-    return val;
-}
+    case NODE_VAR:
+        // hash table lookup (O(1) average)
+        return getVar(node->varName);
 
-// Parse an expression with + and - operators (left associative)
-double parseExpression(const char **src)
-{
-    double val = parseTerm(src);
-
-    while (1)
+    case NODE_BINOP:
     {
-        const char *save = *src;
-        Token op = getNextToken(src);
+        double l = evalExpr(node->binop.left);
+        double r = evalExpr(node->binop.right);
 
-        if (op.type == TOKEN_PLUS)
+        switch (node->binop.op)
         {
-            val += parseTerm(src);
-        }
-        else if (op.type == TOKEN_SUB)
-        {
-            val -= parseTerm(src);
-        }
-        else
-        {
-            *src = save;
-            break;
-        }
-    }
-
-    return val;
-}
-
-// Parse comparison operators (==, !=, <, >, <=, >=)
-double parseComparison(const char **src)
-{
-    double left = parseExpression(src);
-
-    const char *save = *src;
-    Token op = getNextToken(src);
-
-    if(op.type == TOKEN_RPAREN){
-        *src=save;
-        return left;
-    }
-
-    if (op.type == TOKEN_EQ || op.type == TOKEN_NE ||
-        op.type == TOKEN_LT || op.type == TOKEN_GT ||
-        op.type == TOKEN_LE || op.type == TOKEN_GE)
-    {
-        double right = parseExpression(src);
-
-        switch (op.type)
-        {
-        case TOKEN_EQ:
-            return (left == right) ? 1.0 : 0.0;
-        case TOKEN_NE:
-            return (left != right) ? 1.0 : 0.0;
-        case TOKEN_LT:
-            return (left < right) ? 1.0 : 0.0;
-        case TOKEN_GT:
-            return (left > right) ? 1.0 : 0.0;
-        case TOKEN_LE:
-            return (left <= right) ? 1.0 : 0.0;
-        case TOKEN_GE:
-            return (left >= right) ? 1.0 : 0.0;
+        case OP_ADD:
+            return l + r;
+        case OP_SUB:
+            return l - r;
+        case OP_MUL:
+            return l * r;
+        case OP_DIV:
+            return r == 0.0 ? (printf("Runtime Error: Division by zero\n"), 0.0) : l / r;
+        case OP_EQ:
+            return l == r ? 1.0 : 0.0;
+        case OP_NE:
+            return l != r ? 1.0 : 0.0;
+        case OP_LT:
+            return l < r ? 1.0 : 0.0;
+        case OP_LE:
+            return l <= r ? 1.0 : 0.0;
+        case OP_GT:
+            return l > r ? 1.0 : 0.0;
+        case OP_GE:
+            return l >= r ? 1.0 : 0.0;
         default:
             return 0.0;
         }
     }
-    else
-    {
-        *src = save; // Not a comparison, restore position
-        return left;
+
+    case NODE_STR:
+        return 0.0; // numeric value of string is 0
+
+    default:
+        return 0.0;
     }
 }
 
-// Print a single expression (string or numeric)
-void printExpression(const char **src)
-{
-    const char *save = *src;
-    Token peek = getNextToken(src);
-    *src = save; // Restore position
+// ------------------- AST EXECUTION -------------------
 
-    if (peek.type == TOKEN_STR)
-    {
-        Token str = getNextToken(src);
-        printf("%s", str.text);
-    }
-    else if (peek.type == TOKEN_NUM || peek.type == TOKEN_ID ||
-             peek.type == TOKEN_LPAREN || peek.type == TOKEN_SUB ||
-             peek.type == TOKEN_PLUS)
-    {
-        double val = parseComparison(src); // Allow comparisons in print
-        printf("%g", val);
-    }
-    else
-    {
-        printf("Error: Invalid expression in print");
-    }
-}
-
-// Execute a block of statements enclosed in { }
-void execBlock(const char **src)
+void execAST(ASTNode *node)
 {
-    Token lbrace = getNextToken(src);
-    if (lbrace.type != TOKEN_LBRACE)
-    {
-        printf("Syntax Error: Expected '{' to start block\n");
+    if (!node)
         return;
-    }
 
-    while (1)
+    switch (node->type)
     {
-        // Skip whitespace
-        while (**src && (**src == ' ' || **src == '\t' || **src == '\n' || **src == '\r'))
-            (*src)++;
+    case NODE_BLOCK:
+        for (int i = 0; i < node->block.count; ++i)
+            execAST(node->block.items[i]);
+        break;
 
-        // Check for end of block
-        const char *save = *src;
-        Token peek = getNextToken(src);
-        if (peek.type == TOKEN_RBRACE)
-        {
-            break; // End of block
-        }
-        else if (peek.type == TOKEN_EOF)
-        {
-            printf("Syntax Error: Expected '}' to close block\n");
-            return;
-        }
+    case NODE_ASSIGN:
+        setVar(node->assign.varName, evalExpr(node->assign.value));
+        break;
 
-        *src = save; // Restore position
-        execStatement(src);
-    }
-}
-
-void execStatement(const char **src)
-{
-    Token tk = getNextToken(src);
-
-    if (tk.type == TOKEN_LET)
+    case NODE_PRINT:
     {
-        Token name = getNextToken(src);
-        if (name.type != TOKEN_ID)
+        for (int i = 0; i < node->print.count; ++i)
         {
-            printf("Syntax Error: Expected variable name after 'let'\n");
-            return;
-        }
+            ASTNode *expr = node->print.exprs[i];
+            if (!expr)
+                continue;
 
-        Token eq = getNextToken(src);
-        if (eq.type != TOKEN_EQUAL)
-        {
-            printf("Syntax Error: Expected '=' after variable name\n");
-            return;
-        }
-
-        double val = parseComparison(src); // Allow comparisons in assignments
-        setVar(name.text, val);
-
-        Token semi = getNextToken(src);
-        if (semi.type != TOKEN_SEMI)
-        {
-            printf("Syntax Error: Expected ';' after assignment\n");
-            return;
-        }
-    }
-    else if (tk.type == TOKEN_PRINT)
-    {
-        int first = 1;
-        while (1)
-        {
-            while (**src && (**src == ' ' || **src == '\t'))
-                (*src)++;
-
-            const char *save = *src;
-            Token peek = getNextToken(src);
-
-            if (peek.type == TOKEN_SEMI)
-            {
-                printf("\n");
-                break;
-            }
-            else if (peek.type == TOKEN_STR || peek.type == TOKEN_NUM ||
-                     peek.type == TOKEN_ID || peek.type == TOKEN_LPAREN ||
-                     peek.type == TOKEN_SUB || peek.type == TOKEN_PLUS)
-            {
-                *src = save;
-                if (!first)
-                    printf(" ");
-                printExpression(src);
-                first = 0;
-            }
-            else if (peek.type == TOKEN_EOF)
-            {
-                printf("Syntax Error: Expected ';' to end print statement\n");
-                return;
-            }
+            if (expr->type == NODE_STR)
+                fputs(expr->string, stdout);
             else
-            {
-                printf("Syntax Error: Invalid expression in print statement (got '%s')\n", peek.text);
-                return;
-            }
+                printf("%g", evalExpr(expr));
+
+            if (i < node->print.count - 1)
+                putchar(' '); // separate multiple values
         }
+        putchar('\n'); // newline after print
+        break;
     }
-    else if (tk.type == TOKEN_IF)
+
+    case NODE_IF:
     {
-        Token lparen = getNextToken(src);
-        if (lparen.type != TOKEN_LPAREN)
-        {
-            printf("Syntax Error: Expected '(' after 'if'\n");
-            return;
-        }
-
-        double condition = parseComparison(src);
-
-        Token rparen = getNextToken(src);
-        if (rparen.type != TOKEN_RPAREN)
-        {
-            printf("Syntax Error: Expected ')' after if condition\n");
-            return;
-        }
-
-        // Execute the block only if condition is true (non-zero)
-        if (condition != 0.0)
-        {
-            execBlock(src);
-        }
-        else
-        {
-            // Skip the block
-            int braceCount = 1;
-            Token lbrace = getNextToken(src);
-            if (lbrace.type != TOKEN_LBRACE)
-            {
-                printf("Syntax Error: Expected '{' after if condition\n");
-                return;
-            }
-
-            while (braceCount > 0)
-            {
-                Token t = getNextToken(src);
-                if (t.type == TOKEN_LBRACE)
-                    braceCount++;
-                else if (t.type == TOKEN_RBRACE)
-                    braceCount--;
-                else if (t.type == TOKEN_EOF)
-                {
-                    printf("Syntax Error: Unclosed if block\n");
-                    return;
-                }
-            }
-        }
+        double cond = evalExpr(node->ifstmt.cond);
+        execAST(cond != 0.0 ? node->ifstmt.thenBlock : node->ifstmt.elseBlock);
+        break;
     }
-    else if (tk.type == TOKEN_EOF)
+
+    case NODE_FOR:
     {
-        return;
+        if (node->forstmt.init)
+            execAST(node->forstmt.init);
+
+        ASTNode *condNode = node->forstmt.cond;
+        ASTNode *incrNode = node->forstmt.incr;
+        ASTNode *bodyNode = node->forstmt.body;
+
+        while (!condNode || evalExpr(condNode) != 0.0)
+        {
+            if (bodyNode)
+                execAST(bodyNode);
+            if (incrNode)
+                execAST(incrNode);
+        }
+        break;
     }
-    else
-    {
-        printf("Syntax Error: Unexpected token '%s'\n", tk.text);
-        return;
+
+    default:
+        break;
     }
 }

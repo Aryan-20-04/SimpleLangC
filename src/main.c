@@ -1,47 +1,59 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include "lexer.h"
+#include <time.h>
+#include "parser.h"
 #include "interpreter.h"
+#include "symbol.h"
 
-#define MAX_SRC_SIZE 65536
+#define MAX_SRC (1 << 20)
 
-int main()
+int main(int argc, char **argv)
 {
-    FILE *fp = fopen("programs/program.txt", "r");
-    if (!fp)
+    const char *fname = "programs/program.txt";
+    if (argc >= 2)
+        fname = argv[1];
+
+    FILE *f = fopen(fname, "rb");
+    if (!f)
     {
-        perror("Failed to open the source file");
+        perror("open");
         return 1;
     }
-    char *source = malloc(MAX_SRC_SIZE);
-    if (!source)
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (len <= 0)
     {
-        perror("Memory allocation failed");
-        fclose(fp);
+        fclose(f);
         return 1;
     }
-    size_t len = fread(source, 1, MAX_SRC_SIZE - 1, fp);
-    source[len] = '\0';
-    fclose(fp);
-    for (size_t i = 0; i < len; i++)
+    char *src = malloc(len + 1);
+    if (!src)
     {
-        if (source[i] == '\r')
-            source[i] = '\n';
+        fclose(f);
+        return 1;
     }
-    const char *ptr = source;
-    while (*ptr)
-    {
-        while (*ptr && isspace(*ptr))
-        {
-            ptr++;
-        }
-        if (*ptr == '\0')
-            break;
+    fread(src, 1, len, f);
+    src[len] = '\0';
+    fclose(f);
 
-        execStatement(&ptr);
+    // parse program into AST
+    ASTNode *program = parseProgram(src);
+    if (!program)
+    {
+        printf("Parse failed\n");
+        free(src);
+        return 1;
     }
 
-    free(source);
+    // execute and time
+    printf("Compiling...\n");
+    execAST(program);
+    flushOutput();
+    
+    // cleanup
+    freeNode(program);
+    clearSymbols();
+    free(src);
     return 0;
 }

@@ -1,14 +1,12 @@
 #ifndef INTERPRETER_H
 #define INTERPRETER_H
 
-#include "lexer.h"
+#include "ast.h"
 
-void execStatement(const char **src);
-void execBlock(const char **src);
-double parseExpression(const char **src);
-double parseComparison(const char **src);
-double parseTerm(const char **src);
-double parseFactor(const char **src);
-void printExpression(const char **src);
+void execAST(ASTNode *node);
+double evalExpr(ASTNode *node);
+
+// buffered output functions
+void flushOutput(void);
 
 #endif
