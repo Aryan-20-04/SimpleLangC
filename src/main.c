@@ -7,7 +7,7 @@
 
 int main()
 {
-    FILE *fp = fopen("../programs/program.txt", "r");
+    FILE *fp = fopen("programs/program.txt", "r");
     if (!fp)
     {
         perror("Failed to open the source file");

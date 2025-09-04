@@ -42,7 +42,7 @@ Token getNextToken(const char **src)
 
         (*src) += 2; // Skip 'r"'
         Token tk = {TOKEN_STR, ""};
-        int i = 0;
+        size_t i = 0;
         while (**src && **src != '"' && i < sizeof(tk.text) - 1)
             tk.text[i++] = *(*src)++;
         tk.text[i] = '\0';
@@ -57,7 +57,7 @@ Token getNextToken(const char **src)
 
         (*src) += 3; // Skip opening """
         Token tk = {TOKEN_STR, ""};
-        int i = 0;
+        size_t i = 0;
         while (**src && !(**src == '"' && *(*src + 1) == '"' && *(*src + 2) == '"'))
         {
             if (i < sizeof(tk.text) - 1)
@@ -77,7 +77,7 @@ Token getNextToken(const char **src)
 
         (*src)++; // Skip opening quote
         Token tk = {TOKEN_STR, ""};
-        int i = 0;
+        size_t i = 0;
         while (**src && **src != '"' && i < sizeof(tk.text) - 1)
         {
             if (**src == '\\')
@@ -119,7 +119,7 @@ Token getNextToken(const char **src)
     {
 
         Token tk = {TOKEN_NUM, ""};
-        int i = 0;
+        size_t i = 0;
         while (isdigit(**src) && i < sizeof(tk.text) - 1)
             tk.text[i++] = *(*src)++;
         tk.text[i] = '\0';
@@ -132,7 +132,7 @@ Token getNextToken(const char **src)
     {
 
         Token tk = {TOKEN_ID, ""};
-        int i = 0;
+        size_t i = 0;
         while (isalnum(**src) && i < sizeof(tk.text) - 1)
             tk.text[i++] = *(*src)++;
         tk.text[i] = '\0';
