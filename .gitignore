@@ -1,0 +1,9 @@
+# Compiled binaries
+/build/
+*.exe
+*.o
+
+# IDE / OS files
+*.swp
+*.vscode/
+*.DS_Store
