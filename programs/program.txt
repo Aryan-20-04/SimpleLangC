@@ -1,11 +1,3 @@
-let x = 10;
-let y= 5;
-if (x<y){
-    print "X Wins";
-}
-elseif(x>y){
-    print "Y Wins";
-}
-else{
-    print "None";
+for (let i = 0; i < 10; i++){
+    print "HI";
 }
