@@ -6,36 +6,35 @@ It supports:
 - Numeric variables
 - Arithmetic operations (`+` and `-`)
 - Strings (normal, raw `r"..."`, and triple-quoted `"""..."""`)
-- Multi-part `print` statements (mix text and expressions)
+- Multi-type `print` statements (mix text and expressions)
 
 ---
 
-# Features
+## Features
 
-1. Variables
+### 1. Variables
 
-```txt
-let x = 10;
+```text
+let x = 10;  // numeric variable
 let y = 5;
-Arithmetic
-
-print x + y;
-Strings
-
+```
+### 2. Arithmetic
+```text
+print x + y;  // Outputs: 15
+```
+### 3. Strings
+```text
 print "Hello World";
 print r"C:\Users\Projects";
 print """Line1
 Line2
 Line3""";
-Multi-part print
-
-print "x + y: " x + y;
-Outputs:
-
-x + y: 15
 ```
-
-## Folder Structure
+### 4. Multi-type Print
+```text
+print "x + y: " x + y;  // Outputs: x + y: 15
+```
+### Folder Structure
 ```text
 MyLang/
 ├── src/                  # Source files
@@ -49,21 +48,24 @@ MyLang/
 ├── programs/             # Sample programs
 │   └── program.txt
 ├── build/                # Compiled binaries (ignored by git)
-├── .gitignore
+├── Makefile              # Optional build automation
 └── README.md
 ```
-## How to Compile
+### How to Compile
+#### Option 1: Using GCC
 ```text
-Navigate to the src/ directory:
-
 cd MyLang/src
-Compile all source files:
-
 gcc main.c lexer.c interpreter.c symbol.c -o ../build/mylang
-Run the interpreter:
+./../build/mylang
 ```
+#### Option 2: Using Make
 
-## Sample program.txt
+##### From the project root
+```text
+make
+make run
+```
+#### Sample program.txt
 ```text
 let x = 13;
 let y = 15;
@@ -76,7 +78,7 @@ print """Line1
 Line2
 Line3""";
 ```
-## Expected output:
+#### Expected Output
 ```text
 Program Starting....
 13
