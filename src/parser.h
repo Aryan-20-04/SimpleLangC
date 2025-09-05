@@ -4,6 +4,6 @@
 #include "ast.h"
 
 // parse the entire source and return an AST block node (root)
-ASTNode *parseProgram(const char *src);
+struct ASTNode *parseProgram(const char *src);
 
 #endif

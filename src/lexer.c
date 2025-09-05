@@ -6,36 +6,31 @@
 
 Token getNextToken(const char **src)
 {
-    static int call_count = 0;
-    call_count++;
-
     // Skip whitespace
     while (**src && isspace(**src))
         (*src)++;
 
     if (**src == '\0')
-    {
         return (Token){TOKEN_EOF, ""};
-    }
 
-    // Raw string: r"..." - CHECK THIS FIRST before identifiers
+    // Raw string: r"..."
     if (**src == 'r' && *(*src + 1) == '"')
     {
-        (*src) += 2; // Skip 'r"'
+        (*src) += 2;
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
         while (**src && **src != '"' && i < sizeof(tk.text) - 1)
             tk.text[i++] = *(*src)++;
         tk.text[i] = '\0';
-        if (**src == '"') // Skip closing quote
+        if (**src == '"')
             (*src)++;
         return tk;
     }
 
-    // Triple-quoted string: """...""" - CHECK BEFORE normal strings
+    // Triple-quoted string: """..."""
     if (**src == '"' && *(*src + 1) == '"' && *(*src + 2) == '"')
     {
-        (*src) += 3; // Skip opening """
+        (*src) += 3;
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
         while (**src && !(**src == '"' && *(*src + 1) == '"' && *(*src + 2) == '"'))
@@ -46,7 +41,7 @@ Token getNextToken(const char **src)
                 (*src)++;
         }
         tk.text[i] = '\0';
-        if (**src) // Skip closing """
+        if (**src)
             (*src) += 3;
         return tk;
     }
@@ -54,7 +49,7 @@ Token getNextToken(const char **src)
     // Normal string: "..."
     if (**src == '"')
     {
-        (*src)++; // Skip opening quote
+        (*src)++;
         Token tk = {TOKEN_STR, ""};
         size_t i = 0;
         while (**src && **src != '"' && i < sizeof(tk.text) - 1)
@@ -70,11 +65,11 @@ Token getNextToken(const char **src)
                 case 't':
                     tk.text[i++] = '\t';
                     break;
-                case '\\':
-                    tk.text[i++] = '\\';
-                    break;
                 case '"':
                     tk.text[i++] = '"';
+                    break;
+                case '\\':
+                    tk.text[i++] = '\\';
                     break;
                 default:
                     tk.text[i++] = **src;
@@ -82,13 +77,11 @@ Token getNextToken(const char **src)
                 }
             }
             else
-            {
                 tk.text[i++] = **src;
-            }
             (*src)++;
         }
         tk.text[i] = '\0';
-        if (**src == '"') // Skip closing quote
+        if (**src == '"')
             (*src)++;
         return tk;
     }
@@ -108,7 +101,6 @@ Token getNextToken(const char **src)
         int len = *src - start;
         if (len >= 64)
             len = 63;
-
         Token tk;
         tk.type = TOKEN_NUM;
         strncpy(tk.text, start, len);
@@ -124,7 +116,7 @@ Token getNextToken(const char **src)
         while (isalnum(**src) && i < sizeof(tk.text) - 1)
             tk.text[i++] = *(*src)++;
         tk.text[i] = '\0';
-
+        // Keywords
         if (strcmp(tk.text, "print") == 0)
             tk.type = TOKEN_PRINT;
         else if (strcmp(tk.text, "let") == 0)
@@ -144,7 +136,7 @@ Token getNextToken(const char **src)
         return tk;
     }
 
-    // Multi-char operations
+    // Multi-char operators
     if (**src == '=' && *(*src + 1) == '=')
     {
         (*src) += 2;
@@ -166,10 +158,9 @@ Token getNextToken(const char **src)
         return (Token){TOKEN_GE, ">="};
     }
 
-    // Single character tokens
+    // Single-character tokens
     char ch = **src;
     (*src)++;
-
     Token tk = {TOKEN_EOF, ""};
     tk.text[0] = ch;
     tk.text[1] = '\0';
@@ -215,11 +206,15 @@ Token getNextToken(const char **src)
     case ',':
         tk.type = TOKEN_COMMA;
         break;
-
+    case '[':
+        tk.type = TOKEN_LBRACKET;
+        break;
+    case ']':
+        tk.type = TOKEN_RBRACKET;
+        break;
     default:
-        // Unknown character, return EOF token
-        return (Token){TOKEN_EOF, ""};
+        tk.type = TOKEN_EOF;
+        break;
     }
-
     return tk;
 }

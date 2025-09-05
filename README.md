@@ -1,119 +1,142 @@
-# MyLang – A Simple C-Based Programming Language
+# SimpleLangC
 
-MyLang is a small experimental programming language written in C.  
-It supports:
-
-- Numeric variables
-- Arithmetic operations (`+`, `-`, `*`, `/`)
-- Comparisons (`==`, `!=`, `<`, `>`, `<=`, `>=`)
-- Strings (normal, raw `r"..."`, and triple-quoted `"""..."""`)
-- Multi-type `print` statements (mix text and expressions)
-- Conditional execution with `if`
+A small interpreter for a **C-like scripting language** written in C.  
+Supports variables, arithmetic, control flow, arrays, and built-in functions like `length()`.
 
 ---
 
-## Features
+## ✨ Features
 
-### 1. Variables
-
+### Variables & Arithmetic
 ```text
-let x = 10;  // numeric variable
-let y = 5;
+let x = 5;
+let y = 10;
+print x + y;   // 15
 ```
-### 2. Arithmetic
+### If Statements
 ```text
-print x + y;  // Outputs: 15
-```
-
-### 3. Strings
-```text
-print "Hello World";
-print r"C:\Users\Projects";
-print """Line1
-Line2
-Line3""";
+let n = 7;
+if (n > 5) {
+    print "Greater than 5";
+} else {
+    print "Less or equal to 5";
+}
 ```
 
-### 4. Multi-type Print
+### For Loops
 ```text
-print "x + y: " x + y;  // Outputs: x + y: 15
+for (let i=0; i<5; i=i+1) {
+    print i;
+}
 ```
-### 5. Conditionals
+
+### Arrays
+```text
+let arr = [10, 23, 2, 21];
+print arr;     // [10, 23, 2, 21]
+print arr[2];  // 2
+Arrays are 0-based indexed.
+Use length(arr) to get the number of elements.
+```
+### Array Assignment
+```text
+let arr = [1, 2, 3];
+arr[1] = 99;
+print arr;     // [1, 99, 3]
+
+Sorting Example (Bubble Sort)
+Copy code
+let arr=[10,23,2,21,4,6,1,3,9,7,90,22];
+
+for (let i=0; i<length(arr); i=i+1){
+    for (let j=i+1; j<length(arr); j=j+1){
+        if (arr[i] > arr[j]) {
+            let temp = arr[i];
+            arr[i] = arr[j];
+            arr[j] = temp;
+        }
+    }
+}
+
+print arr;      // [1, 2, 3, 4, 6, 7, 9, 10, 21, 22, 23, 90]
+print arr[2];   // 3
+```
+### Build & Run
+
+#### Prebuilt
+```text
+make          # build the interpreter
+make run      # run sample program
+```
+#### Manually:
+```text
+gcc -Wall -Wextra -g -o mylang src/*.c
+./mylang programs/program.txt
+```
+### Language Grammar (Simplified)
+#### Variables
 ```text
 let x = 10;
+let arr = [1, 2, 3];
+```
+#### Expressions
+```text
++, -, *, /, ==, !=, <, <=, >, >=
+```
+#### Control Flow
+```text
+if (expr) { ... } else { ... }
+for (init; cond; incr) { ... }
+```
+#### Arrays
+```text
+arr[i] = value;
+print arr;       # pretty-prints entire array
+print arr[2];    # prints element
+length(arr);
+```
 
-if (x == 10) {
-    print "x is 10";
+### Notes & Limitations
+```text
+Arrays are numeric only (no strings inside arrays yet).
+
+Out-of-bounds array access will print an error and return 0.
+
+print always adds a newline at the end.
+
+Strings must use double quotes "text".
+```
+
+### Example Program
+```text
+programs/program.txt
+
+let arr=[10,23,2,21,4,6,1,3,9,7,90,22];
+
+for (let i=0; i<length(arr); i=i+1){
+    for (let j=i+1; j<length(arr); j=j+1){
+        if (arr[i] > arr[j]) {
+            let temp=arr[i];
+            arr[i]=arr[j];
+            arr[j]=temp;
+        }
+    }
 }
 
-if (x > 5) {
-    print "x is greater than 5";
-}
+print "Sorted Array:";
+print arr;
+print "3rd Element:";
+print arr[2];
 ```
-## Folder Structure
+### Output
 ```text
-MyLang/
-├── src/                  # Source files
-│   ├── main.c
-│   ├── lexer.c
-│   ├── lexer.h
-│   ├── interpreter.c
-│   ├── interpreter.h
-│   ├── symbol.c
-│   └── symbol.h
-├── programs/             # Sample programs
-│   └── program.txt
-├── build/                # Compiled binaries (ignored by git)
-├── Makefile              # Optional build automation
-└── README.md
+Sorted Array:
+[1, 2, 3, 4, 6, 7, 9, 10, 21, 22, 23, 90]
+3rd Element:
+3
 ```
-
-## How to Compile
-### Option 1: Using GCC
+### Author
 ```text
-cd MyLang/src
-gcc main.c lexer.c interpreter.c symbol.c -o ../build/mylang
-./../build/mylang
+Built as a toy interpreter project in C to learn parsing, ASTs, and interpreters.
 ```
-
-### Option 2: Using Make
-From the project root
-```text
-make
-make run
-```
-## Sample program.txt
-```text
-let x = 13;
-let y = 15;
-
-print x;
-print y;
-print "x + y : " x + y;
-print "Hello World";
-print r"C:\Users\Projects";
-print """Line1
-Line2
-Line3""";
-
-if (x < y) {
-    print "x is less than y";
-}
-
-if (x == 13) {
-    print "x is exactly 13";
-}
-```
-### Expected Output
-```text
-13
-15
-x + y : 28
-Hello World
-C:\Users\Projects
-Line1
-Line2
-Line3
-x is less than y
-x is exactly 13
-```
+### By- Aryan Sinha

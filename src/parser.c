@@ -9,7 +9,18 @@
 // Local pointer to source for tokenization (used only indirectly through getNextToken)
 static const char *p_src = NULL;
 
-// helpers
+// Forward declarations
+static struct ASTNode *parseStatement(const char **p);
+static struct ASTNode *parseBlock(const char **p);
+static struct ASTNode *parseExpression(const char **p);
+static struct ASTNode *parseComparison(const char **p);
+static struct ASTNode *parseTerm(const char **p);
+static struct ASTNode *parseFactor(const char **p);
+static struct ASTNode *parseIfStatement(const char **p);
+static struct ASTNode *parseFor(const char **p);
+static struct ASTNode *parseAssignmentNoSemi(const char **p); // helper for for-header assignments
+
+// Helper functions
 static int expectTokenType(const char **p, TokenType t, const char *errMsg)
 {
     Token tk = getNextToken(p);
@@ -22,43 +33,110 @@ static int expectTokenType(const char **p, TokenType t, const char *errMsg)
     return 1;
 }
 
-// Forward declarations
-static ASTNode *parseStatement(const char **p);
-static ASTNode *parseBlock(const char **p);
-static ASTNode *parseExpression(const char **p);
-static ASTNode *parseComparison(const char **p);
-static ASTNode *parseTerm(const char **p);
-static ASTNode *parseFactor(const char **p);
+Token peekToken(const char **src)
+{
+    const char *save = *src;
+    Token tk = getNextToken(src);
+    *src = save; // reset position
+    return tk;
+}
 
-// parse number or identifier or parenthesized expression
-static ASTNode *parseFactor(const char **p)
+int peekTokenType(const char **src)
+{
+    return peekToken(src).type;
+}
+
+// ----------------- Parsing Expressions -----------------
+
+static struct ASTNode *parseFactor(const char **p)
 {
     Token tk = getNextToken(p);
+
     if (tk.type == TOKEN_NUM)
     {
-        ASTNode *n = newNode(NODE_NUM);
+        struct ASTNode *n = newNode(NODE_NUM);
         n->number = strtod(tk.text, NULL);
+        return n;
+    }
+    else if (tk.type == TOKEN_STR)
+    {
+        struct ASTNode *n = newNode(NODE_STR);
+        n->string = strdup(tk.text);
         return n;
     }
     else if (tk.type == TOKEN_ID)
     {
-        ASTNode *n = newNode(NODE_VAR);
-        strncpy(n->varName, tk.text, sizeof(n->varName) - 1);
-        return n;
+        const char *save = *p;
+        Token nxt = getNextToken(p);
+
+        if (nxt.type == TOKEN_LPAREN)
+        {
+            struct ASTNode *fn = newNode(NODE_FUNC_CALL);
+            fn->funcCall.funcName = strdup(tk.text);
+            fn->funcCall.argCount = 0;
+            fn->funcCall.args = NULL;
+
+            if (peekTokenType(p) != TOKEN_RPAREN)
+            {
+                while (1)
+                {
+                    struct ASTNode *arg = parseComparison(p);
+                    if (!arg)
+                        break;
+                    fn->funcCall.args = realloc(fn->funcCall.args,
+                                                sizeof(struct ASTNode *) * (fn->funcCall.argCount + 1));
+                    fn->funcCall.args[fn->funcCall.argCount++] = arg;
+
+                    const char *saveComma = *p;
+                    Token comma = getNextToken(p);
+                    if (comma.type == TOKEN_COMMA)
+                        continue;
+                    else
+                    {
+                        *p = saveComma;
+                        break;
+                    }
+                }
+            }
+
+            expectTokenType(p, TOKEN_RPAREN, "Expected ')' after function call");
+            return fn;
+        }
+        else if (nxt.type == TOKEN_LBRACKET)
+        {
+            *p = save;
+            struct ASTNode *varNode = newNode(NODE_VAR);
+            strncpy(varNode->varName, tk.text, sizeof(varNode->varName) - 1);
+
+            getNextToken(p); // consume '['
+            struct ASTNode *idx = parseComparison(p);
+            expectTokenType(p, TOKEN_RBRACKET, "Expected ']' after array index");
+
+            struct ASTNode *acc = newNode(NODE_ARR_ACCESS);
+            strncpy(acc->ArrAccessNode.varName, tk.text, sizeof(acc->ArrAccessNode.varName) - 1);
+            acc->ArrAccessNode.index = idx;
+            return acc;
+        }
+        else
+        {
+            *p = save;
+            struct ASTNode *varNode = newNode(NODE_VAR);
+            strncpy(varNode->varName, tk.text, sizeof(varNode->varName) - 1);
+            return varNode;
+        }
     }
     else if (tk.type == TOKEN_LPAREN)
     {
-        ASTNode *e = parseComparison(p);
+        struct ASTNode *e = parseComparison(p);
         expectTokenType(p, TOKEN_RPAREN, "Expected ')'");
         return e;
     }
     else if (tk.type == TOKEN_SUB)
     {
-        // unary -
-        ASTNode *f = parseFactor(p);
-        ASTNode *zero = newNode(NODE_NUM);
+        struct ASTNode *f = parseFactor(p);
+        struct ASTNode *zero = newNode(NODE_NUM);
         zero->number = 0.0;
-        ASTNode *bin = newNode(NODE_BINOP);
+        struct ASTNode *bin = newNode(NODE_BINOP);
         bin->binop.op = OP_SUB;
         bin->binop.left = zero;
         bin->binop.right = f;
@@ -68,11 +146,39 @@ static ASTNode *parseFactor(const char **p)
     {
         return parseFactor(p);
     }
-    else if (tk.type == TOKEN_STR)
+    else if (tk.type == TOKEN_LBRACKET) // array literal
     {
-        ASTNode *n = newNode(NODE_STR);
-        n->string = strdup(tk.text);
-        return n;
+        struct ASTNode *arr = newNode(NODE_ARRAY);
+        arr->ArrayNode.elements = NULL;
+        arr->ArrayNode.count = 0;
+
+        if (peekTokenType(p) != TOKEN_RBRACKET)
+        {
+            while (1)
+            {
+                struct ASTNode *elem = parseComparison(p);
+                if (!elem)
+                    break;
+
+                arr->ArrayNode.elements = realloc(
+                    arr->ArrayNode.elements,
+                    sizeof(struct ASTNode *) * (arr->ArrayNode.count + 1));
+                arr->ArrayNode.elements[arr->ArrayNode.count++] = elem;
+
+                const char *save = *p;
+                Token comma = getNextToken(p);
+                if (comma.type == TOKEN_COMMA)
+                    continue;
+                else
+                {
+                    *p = save;
+                    break;
+                }
+            }
+        }
+
+        expectTokenType(p, TOKEN_RBRACKET, "Expected ']' after array literal");
+        return arr;
     }
     else
     {
@@ -81,19 +187,20 @@ static ASTNode *parseFactor(const char **p)
     }
 }
 
-static ASTNode *parseTerm(const char **p)
+static struct ASTNode *parseTerm(const char **p)
 {
-    ASTNode *left = parseFactor(p);
+    struct ASTNode *left = parseFactor(p);
     if (!left)
         return NULL;
+
     while (1)
     {
         const char *save = *p;
         Token op = getNextToken(p);
         if (op.type == TOKEN_MUL || op.type == TOKEN_DIV)
         {
-            ASTNode *right = parseFactor(p);
-            ASTNode *bin = newNode(NODE_BINOP);
+            struct ASTNode *right = parseFactor(p);
+            struct ASTNode *bin = newNode(NODE_BINOP);
             bin->binop.left = left;
             bin->binop.right = right;
             bin->binop.op = (op.type == TOKEN_MUL) ? OP_MUL : OP_DIV;
@@ -108,19 +215,20 @@ static ASTNode *parseTerm(const char **p)
     return left;
 }
 
-static ASTNode *parseExpression(const char **p)
+static struct ASTNode *parseExpression(const char **p)
 {
-    ASTNode *left = parseTerm(p);
+    struct ASTNode *left = parseTerm(p);
     if (!left)
         return NULL;
+
     while (1)
     {
         const char *save = *p;
         Token op = getNextToken(p);
         if (op.type == TOKEN_PLUS || op.type == TOKEN_SUB)
         {
-            ASTNode *right = parseTerm(p);
-            ASTNode *bin = newNode(NODE_BINOP);
+            struct ASTNode *right = parseTerm(p);
+            struct ASTNode *bin = newNode(NODE_BINOP);
             bin->binop.left = left;
             bin->binop.right = right;
             bin->binop.op = (op.type == TOKEN_PLUS) ? OP_ADD : OP_SUB;
@@ -135,15 +243,17 @@ static ASTNode *parseExpression(const char **p)
     return left;
 }
 
-static ASTNode *parseComparison(const char **p)
+static struct ASTNode *parseComparison(const char **p)
 {
-    ASTNode *left = parseExpression(p);
+    struct ASTNode *left = parseExpression(p);
     if (!left)
         return NULL;
+
     const char *save = *p;
     Token op = getNextToken(p);
     BinOpType b;
     int isComp = 1;
+
     if (op.type == TOKEN_EQ)
         b = OP_EQ;
     else if (op.type == TOKEN_NE)
@@ -165,20 +275,22 @@ static ASTNode *parseComparison(const char **p)
         return left;
     }
 
-    ASTNode *right = parseExpression(p);
-    ASTNode *bin = newNode(NODE_BINOP);
+    struct ASTNode *right = parseExpression(p);
+    struct ASTNode *bin = newNode(NODE_BINOP);
     bin->binop.left = left;
     bin->binop.right = right;
     bin->binop.op = b;
     return bin;
 }
 
-// parse a block { stmt* }
-static ASTNode *parseBlock(const char **p)
+// ----------------- Parsing Statements -----------------
+
+static struct ASTNode *parseBlock(const char **p)
 {
     if (!expectTokenType(p, TOKEN_LBRACE, "Expected '{' to start block"))
         return NULL;
-    ASTNode *blk = newNode(NODE_BLOCK);
+
+    struct ASTNode *blk = newNode(NODE_BLOCK);
     blk->block.items = NULL;
     blk->block.count = 0;
 
@@ -194,15 +306,15 @@ static ASTNode *parseBlock(const char **p)
             break;
         }
         *p = save;
-        ASTNode *stmt = parseStatement(p);
+        struct ASTNode *stmt = parseStatement(p);
         if (stmt)
         {
-            blk->block.items = realloc(blk->block.items, sizeof(ASTNode *) * (blk->block.count + 1));
+            blk->block.items = realloc(blk->block.items,
+                                       sizeof(struct ASTNode *) * (blk->block.count + 1));
             blk->block.items[blk->block.count++] = stmt;
         }
         else
         {
-            // on parse error, attempt to continue by advancing a token
             Token skip = getNextToken(p);
             if (skip.type == TOKEN_EOF)
                 break;
@@ -211,86 +323,156 @@ static ASTNode *parseBlock(const char **p)
     return blk;
 }
 
-ASTNode *parseFor(const char **src)
-{
-    ASTNode *node = newNode(NODE_FOR);
-
-    expectTokenType(src, TOKEN_LPAREN, "Expected '(' after for");
-
-    // init
-    node->forstmt.init = parseStatement(src);
-
-    // condition
-    node->forstmt.cond = parseExpression(src);
-    expectTokenType(src, TOKEN_SEMI, "Expected ';' after for condition");
-
-    // increment
-    node->forstmt.incr = parseStatement(src);
-    expectTokenType(src, TOKEN_RPAREN, "Expected ')' after for header");
-
-    // body
-    node->forstmt.body = parseBlock(src);
-
-    return node;
-}
-
-// FIXED: Simplified elseif parsing
-static ASTNode *parseIfStatement(const char **p)
+static struct ASTNode *parseIfStatement(const char **p)
 {
     if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after if"))
         return NULL;
 
-    ASTNode *cond = parseComparison(p);
+    struct ASTNode *cond = parseComparison(p);
     if (!expectTokenType(p, TOKEN_RPAREN, "Expected ')' after if condition"))
         return NULL;
 
-    ASTNode *thenBlk = parseBlock(p);
-    ASTNode *elseBlk = NULL;
+    struct ASTNode *thenBlk = parseBlock(p);
+    struct ASTNode *elseBlk = NULL;
 
-    // Check for else/elseif
     const char *save = *p;
     Token next = getNextToken(p);
-
     if (next.type == TOKEN_ELSE)
     {
-        // Check if it's followed by if (elseif case)
         const char *save2 = *p;
         Token maybeIf = getNextToken(p);
-
         if (maybeIf.type == TOKEN_IF)
         {
-            // This is an "else if" - parse it as a new if statement
-            *p = save2;                    // Reset to position after "else"
-            elseBlk = parseIfStatement(p); // Recursive call to handle "if"
+            *p = save2;
+            elseBlk = parseIfStatement(p);
         }
         else
         {
-            // This is a plain "else" - parse the block
-            *p = save2; // Reset to position after "else"
+            *p = save2;
             elseBlk = parseBlock(p);
         }
     }
     else if (next.type == TOKEN_ELSEIF)
     {
-        // Direct elseif token
-        elseBlk = parseIfStatement(p); // Parse as new if statement
+        elseBlk = parseIfStatement(p);
     }
     else
     {
-        // No else/elseif, rewind
         *p = save;
     }
 
-    ASTNode *ifn = newNode(NODE_IF);
+    struct ASTNode *ifn = newNode(NODE_IF);
     ifn->ifstmt.cond = cond;
     ifn->ifstmt.thenBlock = thenBlk;
     ifn->ifstmt.elseBlock = elseBlk;
     return ifn;
 }
 
-// parse a single statement
-static ASTNode *parseStatement(const char **p)
+// Parse an assignment or let-declaration without ';'
+// Accepts:
+//   let id = expr
+//   id = expr
+//   id[expr] = expr
+static struct ASTNode *parseAssignmentNoSemi(const char **p)
 {
+    const char *save = *p;
+    Token tk = getNextToken(p);
+
+    // handle let x=...
+    if (tk.type == TOKEN_LET)
+    {
+        Token id = getNextToken(p);
+        if (id.type != TOKEN_ID)
+        {
+            printf("Syntax Error: Expected identifier after let\n");
+            return NULL;
+        }
+        struct ASTNode *rhs = NULL;
+        if (peekTokenType(p) == TOKEN_EQUAL)
+        {
+            getNextToken(p); // '='
+            rhs = parseComparison(p);
+        }
+        struct ASTNode *decl = newNode(NODE_ASSIGN);
+        strncpy(decl->assign.varName, id.text, sizeof(decl->assign.varName) - 1);
+        decl->assign.value = rhs;
+        return decl;
+    }
+
+    // not let → rewind and parse LHS
+    *p = save;
+    struct ASTNode *lhs = parseFactor(p); // could be var or arr[i]
+    if (!lhs)
+        return NULL;
+
+    Token eq = getNextToken(p);
+    if (eq.type != TOKEN_EQUAL)
+    {
+        *p = save;
+        return NULL;
+    }
+    struct ASTNode *rhs = parseComparison(p);
+    if (!rhs)
+        return NULL;
+
+    if (lhs->type == NODE_VAR)
+    {
+        struct ASTNode *stmt = newNode(NODE_ASSIGN);
+        strncpy(stmt->assign.varName, lhs->varName, sizeof(stmt->assign.varName) - 1);
+        stmt->assign.value = rhs;
+        return stmt;
+    }
+    else if (lhs->type == NODE_ARR_ACCESS)
+    {
+        struct ASTNode *stmt = newNode(NODE_ARR_ASSIGN);
+        strncpy(stmt->arrAssign.varName, lhs->ArrAccessNode.varName, sizeof(stmt->arrAssign.varName) - 1);
+        stmt->arrAssign.index = lhs->ArrAccessNode.index;
+        stmt->arrAssign.value = rhs;
+        return stmt;
+    }
+
+    printf("Syntax Error: Invalid assignment target\n");
+    return NULL;
+}
+
+static struct ASTNode *parseFor(const char **p)
+{
+    struct ASTNode *node = newNode(NODE_FOR);
+    if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after for"))
+        return NULL;
+
+    // init
+    struct ASTNode *init = NULL;
+    if (peekTokenType(p) != TOKEN_SEMI)
+        init = parseAssignmentNoSemi(p);
+    if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after for init"))
+        return NULL;
+
+    // condition
+    struct ASTNode *cond = NULL;
+    if (peekTokenType(p) != TOKEN_SEMI)
+        cond = parseComparison(p);
+    if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after for condition"))
+        return NULL;
+
+    // increment
+    struct ASTNode *incr = NULL;
+    if (peekTokenType(p) != TOKEN_RPAREN)
+        incr = parseAssignmentNoSemi(p);
+    if (!expectTokenType(p, TOKEN_RPAREN, "Expected ')' after for header"))
+        return NULL;
+
+    struct ASTNode *body = parseBlock(p);
+    node->forstmt.init = init;
+    node->forstmt.cond = cond;
+    node->forstmt.incr = incr;
+    node->forstmt.body = body;
+    return node;
+}
+
+static struct ASTNode *parseStatement(const char **p)
+{
+    const char *save = *p;
     Token tk = getNextToken(p);
 
     if (tk.type == TOKEN_LET)
@@ -303,38 +485,39 @@ static ASTNode *parseStatement(const char **p)
         }
         if (!expectTokenType(p, TOKEN_EQUAL, "Expected '=' after variable name"))
             return NULL;
-        ASTNode *val = parseComparison(p);
+        struct ASTNode *val = parseComparison(p);
         if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after assignment"))
             return NULL;
-        ASTNode *asn = newNode(NODE_ASSIGN);
+
+        struct ASTNode *asn = newNode(NODE_ASSIGN);
         strncpy(asn->assign.varName, name.text, sizeof(asn->assign.varName) - 1);
         asn->assign.value = val;
         return asn;
     }
     else if (tk.type == TOKEN_PRINT)
     {
-        ASTNode *pn = newNode(NODE_PRINT);
+        struct ASTNode *pn = newNode(NODE_PRINT);
         pn->print.count = 0;
-        // preallocate 8 expressions, can realloc if needed
         int cap = 8;
-        pn->print.exprs = malloc(sizeof(ASTNode *) * cap);
+        pn->print.exprs = malloc(sizeof(struct ASTNode *) * cap);
+
         while (1)
         {
-            ASTNode *expr = parseComparison(p);
+            struct ASTNode *expr = parseComparison(p);
             if (!expr)
                 break;
             if (pn->print.count >= cap)
             {
                 cap *= 2;
-                pn->print.exprs = realloc(pn->print.exprs, sizeof(ASTNode *) * cap);
+                pn->print.exprs = realloc(pn->print.exprs, sizeof(struct ASTNode *) * cap);
             }
             pn->print.exprs[pn->print.count++] = expr;
 
-            const char *save = *p;
+            const char *savec = *p;
             Token tkComma = getNextToken(p);
             if (tkComma.type != TOKEN_COMMA)
             {
-                *p = save;
+                *p = savec;
                 break;
             }
         }
@@ -346,222 +529,55 @@ static ASTNode *parseStatement(const char **p)
     }
     else if (tk.type == TOKEN_IF)
     {
-        // Put back the IF token and call parseIfStatement
-        // We need to move back to before the IF token
-        // This is a bit tricky with our current setup, so let's handle it differently
         return parseIfStatement(p);
     }
     else if (tk.type == TOKEN_FOR)
     {
-        if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after for"))
-            return NULL;
+        return parseFor(p);
+    }
+    else if (tk.type == TOKEN_SEMI || tk.type == TOKEN_EOF)
+    {
+        return NULL;
+    }
 
-        // Lookahead to decide between "i in range(...)" or c-style init;cond;incr
-        const char *look = *p;
-        Token a = getNextToken(&look);
-        Token b = getNextToken(&look);
-
-        if (a.type == TOKEN_ID && b.type == TOKEN_IN)
+    // allow assignments and function-call statements starting with an identifier
+    if (tk.type == TOKEN_ID)
+    {
+        *p = save; // rewind
+        struct ASTNode *assignStmt = parseAssignmentNoSemi(p);
+        if (assignStmt)
         {
-            // python-style: for (i in range(start,end[,step]))
-            Token varTk = getNextToken(p); // var
-            getNextToken(p);               // consume IN
-            Token rangeTk = getNextToken(p);
-            if (rangeTk.type != TOKEN_RANGE)
-            {
-                printf("Parser Error: expected 'range' after in\n");
+            if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after assignment"))
                 return NULL;
-            }
-            if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after range"))
-                return NULL;
-            ASTNode *start = parseComparison(p);
-            if (!expectTokenType(p, TOKEN_COMMA, "Expected ',' in range"))
-                return NULL;
-            ASTNode *end = parseComparison(p);
-            ASTNode *step = NULL;
-            const char *savep = *p;
-            Token maybeComma = getNextToken(p);
-            if (maybeComma.type == TOKEN_COMMA)
-            {
-                step = parseComparison(p);
-            }
-            else
-            {
-                *p = savep;
-            }
-            expectTokenType(p, TOKEN_RPAREN, "Expected ')' after range args");
-            expectTokenType(p, TOKEN_RPAREN, "Expected ')' after for header");
-
-            // Build equivalent C-style for nodes: init = var = start; cond = var < end; incr = var = var + step
-            ASTNode *init = newNode(NODE_ASSIGN);
-            strncpy(init->assign.varName, varTk.text, sizeof(init->assign.varName) - 1);
-            init->assign.value = start;
-
-            ASTNode *varNode = newNode(NODE_VAR);
-            strncpy(varNode->varName, varTk.text, sizeof(varNode->varName) - 1);
-            ASTNode *cond = newNode(NODE_BINOP);
-            cond->binop.left = varNode;
-            cond->binop.right = end;
-            cond->binop.op = OP_LT;
-
-            ASTNode *stepVal = step ? step : newNode(NODE_NUM);
-            if (!step)
-                stepVal->number = 1.0;
-            ASTNode *vleft = newNode(NODE_VAR);
-            strncpy(vleft->varName, varTk.text, sizeof(vleft->varName) - 1);
-            ASTNode *add = newNode(NODE_BINOP);
-            add->binop.left = vleft;
-            add->binop.right = stepVal;
-            add->binop.op = OP_ADD;
-            ASTNode *incr = newNode(NODE_ASSIGN);
-            strncpy(incr->assign.varName, varTk.text, sizeof(incr->assign.varName) - 1);
-            incr->assign.value = add;
-
-            ASTNode *body = parseBlock(p);
-            ASTNode *forn = newNode(NODE_FOR);
-            forn->forstmt.init = init;
-            forn->forstmt.cond = cond;
-            forn->forstmt.incr = incr;
-            forn->forstmt.body = body;
-            return forn;
+            return assignStmt;
         }
-        else
+
+        // maybe it's a function call as a statement
+        *p = save;
+        struct ASTNode *possibleCall = parseFactor(p);
+        if (possibleCall && possibleCall->type == NODE_FUNC_CALL)
         {
-            // C-style: init ; cond ; incr
-            const char *saveInit = *p;
-            ASTNode *init = NULL;
-            Token next = getNextToken(p);
-            if (next.type == TOKEN_LET)
-            {
-                Token name = getNextToken(p);
-                if (name.type != TOKEN_ID)
-                {
-                    printf("Parser Error: expected identifier in for init\n");
-                    return NULL;
-                }
-                expectTokenType(p, TOKEN_EQUAL, "Expected '=' in for init");
-                ASTNode *val = parseComparison(p);
-                init = newNode(NODE_ASSIGN);
-                strncpy(init->assign.varName, name.text, sizeof(init->assign.varName) - 1);
-                init->assign.value = val;
-            }
-            else
-            {
-                // treat as possible assignment like i = 0
-                *p = saveInit;
-                ASTNode *maybeAssign = parseStatement(p);
-                if (maybeAssign && maybeAssign->type == NODE_ASSIGN)
-                    init = maybeAssign;
-                else
-                {
-                    // if no init, allow empty (rewind)
-                    *p = saveInit;
-                }
-            }
-
-            if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after for init"))
+            if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after function call"))
                 return NULL;
-
-            // condition (could be empty -> true)
-            const char *condPos = *p;
-            ASTNode *cond = NULL;
-            Token condTk = getNextToken(p);
-            if (condTk.type == TOKEN_SEMI)
-            {
-                cond = NULL;
-            }
-            else
-            {
-                *p = condPos;
-                cond = parseComparison(p);
-                if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after for condition"))
-                    return NULL;
-            }
-
-            // parse increment (assignment) or empty
-            const char *tmp = *p;
-            Token tchk = getNextToken(&tmp);
-            if (tchk.type == TOKEN_RPAREN)
-            {
-                // empty incr -> consume ')' and parse body
-                *p = tmp;
-                expectTokenType(p, TOKEN_RPAREN, "Expected ')' after for header");
-                ASTNode *body = parseBlock(p);
-                ASTNode *forn = newNode(NODE_FOR);
-                forn->forstmt.init = init;
-                forn->forstmt.cond = cond;
-                forn->forstmt.incr = NULL;
-                forn->forstmt.body = body;
-                return forn;
-            }
-            else
-            {
-                // attempt parse assignment: ID '=' expr
-                const char *beforeInc = *p;
-                Token id = getNextToken(p);
-                if (id.type == TOKEN_ID)
-                {
-                    Token maybeEq = getNextToken(p);
-                    if (maybeEq.type == TOKEN_EQUAL)
-                    {
-                        ASTNode *rhs = parseComparison(p);
-                        ASTNode *incr = newNode(NODE_ASSIGN);
-                        strncpy(incr->assign.varName, id.text, sizeof(incr->assign.varName) - 1);
-                        incr->assign.value = rhs;
-                        expectTokenType(p, TOKEN_RPAREN, "Expected ')' after for increment");
-                        ASTNode *body = parseBlock(p);
-                        ASTNode *forn = newNode(NODE_FOR);
-                        forn->forstmt.init = init;
-                        forn->forstmt.cond = cond;
-                        forn->forstmt.incr = incr;
-                        forn->forstmt.body = body;
-                        return forn;
-                    }
-                    else
-                    {
-                        // not an assignment → require closing ')', then treat incr as NULL
-                        *p = beforeInc;
-                        if (!expectTokenType(p, TOKEN_RPAREN, "Expected ')' after for header"))
-                            return NULL;
-                        ASTNode *body = parseBlock(p);
-                        ASTNode *forn = newNode(NODE_FOR);
-                        forn->forstmt.init = init;
-                        forn->forstmt.cond = cond;
-                        forn->forstmt.incr = NULL;
-                        forn->forstmt.body = body;
-                        return forn;
-                    }
-                }
-                else
-                {
-                    printf("Parser Error: Unexpected token in for increment\n");
-                    return NULL;
-                }
-            }
+            return possibleCall;
         }
+
+        // fall through to error
+        *p = save;
     }
-    else if (tk.type == TOKEN_SEMI)
-    {
-        // empty statement
-        return NULL;
-    }
-    else if (tk.type == TOKEN_EOF)
-    {
-        return NULL;
-    }
-    else
-    {
-        printf("Parser Error: Unexpected token '%s' at statement start\n", tk.text);
-        return NULL;
-    }
+
+    printf("Parser Error: Unexpected token '%s' at statement start\n", tk.text);
+    return NULL;
 }
 
-// Top-level parse: produce a BLOCK node containing statements
-ASTNode *parseProgram(const char *src)
+// ----------------- Top-Level -----------------
+
+struct ASTNode *parseProgram(const char *src)
 {
     p_src = src;
     const char *p = src;
-    ASTNode *root = newNode(NODE_BLOCK);
+
+    struct ASTNode *root = newNode(NODE_BLOCK);
     root->block.items = NULL;
     root->block.count = 0;
 
@@ -572,20 +588,19 @@ ASTNode *parseProgram(const char *src)
         if (tk.type == TOKEN_EOF || tk.type == TOKEN_RBRACE)
             break;
         p = save;
-        ASTNode *stmt = parseStatement(&p);
+        struct ASTNode *stmt = parseStatement(&p);
         if (stmt)
         {
-            root->block.items = realloc(root->block.items, sizeof(ASTNode *) * (root->block.count + 1));
+            root->block.items = realloc(root->block.items,
+                                        sizeof(struct ASTNode *) * (root->block.count + 1));
             root->block.items[root->block.count++] = stmt;
         }
         else
         {
-            // attempt to advance to avoid infinite loop
             Token t2 = getNextToken(&p);
             if (t2.type == TOKEN_EOF)
                 break;
         }
     }
-
     return root;
 }

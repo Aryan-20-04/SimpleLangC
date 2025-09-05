@@ -3,8 +3,8 @@
 
 #include "ast.h"
 
-void execAST(ASTNode *node);
-double evalExpr(ASTNode *node);
+void execAST(struct ASTNode *node);
+double evalExpr(struct ASTNode *node);
 
 // buffered output functions
 void flushOutput(void);

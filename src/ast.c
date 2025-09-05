@@ -2,9 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-ASTNode *newNode(NodeType type)
+struct ASTNode *newNode(NodeType type)
 {
-    ASTNode *n = (ASTNode *)malloc(sizeof(ASTNode));
+    struct ASTNode *n = (struct ASTNode *)malloc(sizeof(ASTNode));
     if (!n)
         return NULL;
     memset(n, 0, sizeof(ASTNode));
@@ -12,7 +12,7 @@ ASTNode *newNode(NodeType type)
     return n;
 }
 
-void freeNode(ASTNode *node)
+void freeNode(struct ASTNode *node)
 {
     if (!node)
         return;
@@ -30,8 +30,8 @@ void freeNode(ASTNode *node)
         if (node->print.exprs)
         {
             for (int i = 0; i < node->print.count; ++i)
-                freeNode(node->print.exprs[i]); // FIX: access array element
-            free(node->print.exprs);            // FIX: free the array, not call freeNode
+                freeNode(node->print.exprs[i]);
+            free(node->print.exprs);
         }
         break;
     case NODE_BLOCK:
@@ -57,6 +57,23 @@ void freeNode(ASTNode *node)
         if (node->string)
             free(node->string);
         break;
+    case NODE_ARRAY:
+        if (node->ArrayNode.elements)
+        {
+            for (int i = 0; i < node->ArrayNode.count; ++i)
+                freeNode(node->ArrayNode.elements[i]);
+            free(node->ArrayNode.elements);
+        }
+        break;
+    case NODE_ARR_ACCESS:
+        freeNode(node->ArrAccessNode.index);
+        break;
+
+    case NODE_ARR_ASSIGN:
+        freeNode(node->arrAssign.index);
+        freeNode(node->arrAssign.value);
+        break;
+
     default:
         break;
     }

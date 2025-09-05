@@ -13,7 +13,11 @@ typedef enum
     NODE_BLOCK,
     NODE_IF,
     NODE_FOR,
-    NODE_STR
+    NODE_STR,
+    NODE_ARRAY,
+    NODE_ARR_ACCESS,
+    NODE_ARR_ASSIGN,
+    NODE_FUNC_CALL,
 } NodeType;
 
 typedef enum
@@ -36,10 +40,9 @@ typedef struct ASTNode
     union
     {
         double number;    // NODE_NUM
-        char *string;     // NODE_STR (allocated)
-        char varName[64]; // NODE_VAR / NODE_ASSIGN
+        char *string;     // NODE_STR
+        char varName[64]; // NODE_VAR
 
-        // binary op
         struct
         {
             BinOpType op;
@@ -47,46 +50,68 @@ typedef struct ASTNode
             struct ASTNode *right;
         } binop;
 
-        // assign
         struct
         {
             char varName[64];
             struct ASTNode *value;
         } assign;
-        // block
+
         struct
         {
             struct ASTNode **items;
             int count;
         } block;
 
-        // if
         struct
         {
             struct ASTNode *cond;
             struct ASTNode *thenBlock;
-            struct ASTNode *elseBlock; // can be NULL
+            struct ASTNode *elseBlock;
         } ifstmt;
 
-        // for
         struct
         {
-            struct ASTNode *init; // assignment or NULL
-            struct ASTNode *cond; // expression or NULL (treated as true)
-            struct ASTNode *incr; // assignment or NULL
-            struct ASTNode *body; // block
-            // For python-style for, init will be an assign to the loop var and incr is NULL; cond is comparison
+            struct ASTNode *init;
+            struct ASTNode *cond;
+            struct ASTNode *incr;
+            struct ASTNode *body;
         } forstmt;
+
         struct
         {
             struct ASTNode **exprs;
             int count;
         } print;
+
+        struct
+        {
+            struct ASTNode **elements;
+            int count;
+        } ArrayNode;
+        struct
+        {
+            char varName[32];
+            struct ASTNode *index;
+            struct ASTNode *value;
+        } arrAssign;
+
+        struct
+        {
+            char varName[32];
+            struct ASTNode *index;
+        } ArrAccessNode;
+        
+        struct
+        {
+            char *funcName;
+            struct ASTNode **args;
+            int argCount;
+        } funcCall;
     };
-} ASTNode;
+} ASTNode; // ✅ keep only the typedef name here
 
 // constructors / destructors
-ASTNode *newNode(NodeType type);
-void freeNode(ASTNode *node);
+struct ASTNode *newNode(NodeType type);
+void freeNode(struct ASTNode *node);
 
 #endif

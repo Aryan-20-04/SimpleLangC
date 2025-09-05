@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     fclose(f);
 
     // parse program into AST
-    ASTNode *program = parseProgram(src);
+    struct ASTNode *program = parseProgram(src);
     if (!program)
     {
         printf("Parse failed\n");

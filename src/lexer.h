@@ -31,6 +31,8 @@ typedef enum
     TOKEN_RPAREN,
     TOKEN_LBRACE, // New: {
     TOKEN_RBRACE, // New: }
+    TOKEN_LBRACKET,
+    TOKEN_RBRACKET,
     TOKEN_EOF
 } TokenType;
 
