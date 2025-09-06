@@ -73,7 +73,20 @@ void freeNode(struct ASTNode *node)
         freeNode(node->arrAssign.index);
         freeNode(node->arrAssign.value);
         break;
-
+    case NODE_FUNC_DEF:
+        if (node->funcDef.params)
+        {
+            for (int i = 0; i < node->funcDef.paramCount; i++)
+            {
+                free(node->funcDef.params[i]);
+            }
+            free(node->funcDef.params);
+        }
+        freeNode(node->funcDef.body);
+        break;
+    case NODE_RETURN:
+        freeNode(node->returnStmt.value);
+        break;
     default:
         break;
     }

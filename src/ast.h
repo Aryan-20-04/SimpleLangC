@@ -18,6 +18,8 @@ typedef enum
     NODE_ARR_ACCESS,
     NODE_ARR_ASSIGN,
     NODE_FUNC_CALL,
+    NODE_FUNC_DEF,
+    NODE_RETURN,
 } NodeType;
 
 typedef enum
@@ -100,7 +102,19 @@ typedef struct ASTNode
             char varName[32];
             struct ASTNode *index;
         } ArrAccessNode;
-        
+
+        struct
+        {
+            char funcName[64];
+            char **params;
+            int paramCount;
+            struct ASTNode *body;
+        } funcDef;
+
+        struct
+        {
+            struct ASTNode *value;
+        } returnStmt;
         struct
         {
             char *funcName;

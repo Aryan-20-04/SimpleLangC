@@ -7,7 +7,7 @@ typedef enum
     TOKEN_ID,
     TOKEN_PRINT,
     TOKEN_LET,
-    TOKEN_IF,    // New: if keyword
+    TOKEN_IF, // New: if keyword
     TOKEN_ELSE,
     TOKEN_ELSEIF,
     TOKEN_FOR,
@@ -33,6 +33,8 @@ typedef enum
     TOKEN_RBRACE, // New: }
     TOKEN_LBRACKET,
     TOKEN_RBRACKET,
+    TOKEN_FUNC,
+    TOKEN_RETURN,
     TOKEN_EOF
 } TokenType;
 

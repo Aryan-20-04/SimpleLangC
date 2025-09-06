@@ -1,14 +1,22 @@
-let arr=[10,23,2,21,4,6,1,3,9,7,90,22];
 
-for (let i=0; i<length(arr); i=i+1){
-    for (let j=i+1; j<length(arr); j=j+1){
-        if (arr[i] > arr[j]){
-            let temp=arr[i];
-            arr[i]=arr[j];
-            arr[j]=temp;
+let arr = [40, 10, 20, 12, 43, 9, 86, 23];
+
+print "Original array:";
+print arr;
+
+function Bubble(a) {
+    for (let i = 0; i < length(a); i = i + 1) {
+        for (let j = 0; j < length(a) - i - 1; j = j + 1) {
+            if (a[j] > a[j + 1]) {
+                let t = a[j];
+                a[j] = a[j + 1];
+                a[j + 1] = t;
+            }
         }
     }
 }
 
+Bubble(arr);
+
+print "Sorted array:";
 print arr;
-print arr[2];

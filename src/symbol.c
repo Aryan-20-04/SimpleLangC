@@ -1,10 +1,15 @@
 #include "symbol.h"
+#include "ast.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 SymEntry table[MAX_SYMBOLS];
 int table_count = 0;
+
+SymEntry *lookupSym(const char *name);
+
+/* -------------------- INTERNAL HELPERS -------------------- */
 
 static int findIndex(const char *name)
 {
@@ -14,8 +19,10 @@ static int findIndex(const char *name)
     return -1;
 }
 
-static void freeEntry(SymEntry *e)
+static void freeEntryInternal(SymEntry *e)
 {
+    if (!e)
+        return;
     if (e->type == SYM_ARRAY && e->v.arr.data)
     {
         free(e->v.arr.data);
@@ -24,12 +31,43 @@ static void freeEntry(SymEntry *e)
     }
 }
 
+/* resolveArray: follows array references */
+static SymEntry *resolveArray(const char *name)
+{
+    SymEntry *sym = lookupSym(name);
+    if (!sym)
+        return NULL;
+
+    if (sym->type == SYM_ARRAY_REF)
+        return lookupSym(sym->v.arrRefName);
+
+    return sym;
+}
+
+/* -------------------- SYMBOL TABLE OPERATIONS -------------------- */
+
+void popSymbolsTo(int new_count)
+{
+    if (new_count < 0)
+        new_count = 0;
+    if (new_count >= table_count)
+        return;
+
+    for (int i = new_count; i < table_count; ++i)
+    {
+        freeEntryInternal(&table[i]);
+        table[i].name[0] = '\0';
+        table[i].type = 0;
+    }
+    table_count = new_count;
+}
+
 void setVar(const char *name, double value)
 {
     int idx = findIndex(name);
     if (idx >= 0)
     {
-        freeEntry(&table[idx]);
+        freeEntryInternal(&table[idx]);
         table[idx].type = SYM_NUM;
         table[idx].v.num = value;
         return;
@@ -40,10 +78,40 @@ void setVar(const char *name, double value)
         return;
     }
     SymEntry *e = &table[table_count++];
+    e->type = SYM_NUM;
     strncpy(e->name, name, sizeof(e->name) - 1);
     e->name[sizeof(e->name) - 1] = '\0';
-    e->type = SYM_NUM;
     e->v.num = value;
+}
+
+/* Always append new numeric symbol (local) */
+void setVarLocal(const char *name, double value)
+{
+    if (table_count >= MAX_SYMBOLS)
+    {
+        printf("Error: symbol table full\n");
+        return;
+    }
+    SymEntry *e = &table[table_count++];
+    e->type = SYM_NUM;
+    strncpy(e->name, name, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    e->v.num = value;
+}
+
+/* Append a local array reference */
+void setVarLocalArrayRef(const char *localName, const char *existingArrayName)
+{
+    if (table_count >= MAX_SYMBOLS)
+    {
+        printf("Error: symbol table full\n");
+        return;
+    }
+    SymEntry *e = &table[table_count++];
+    e->type = SYM_ARRAY_REF;
+    strncpy(e->name, localName, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    e->v.arrRefName = existingArrayName;
 }
 
 double getVar(const char *name)
@@ -73,15 +141,13 @@ SymEntry *lookupSym(const char *name)
 int isArray(const char *name)
 {
     SymEntry *sym = lookupSym(name);
-    return sym && sym->type == SYM_ARRAY;
+    return sym && (sym->type == SYM_ARRAY || sym->type == SYM_ARRAY_REF);
 }
 
 int getArrayLen(const char *name)
 {
-    SymEntry *sym = lookupSym(name);
-    if (!sym)
-        return 0;
-    if (sym->type != SYM_ARRAY)
+    SymEntry *sym = resolveArray(name);
+    if (!sym || sym->type != SYM_ARRAY)
         return 0;
     return sym->v.arr.len;
 }
@@ -106,7 +172,7 @@ void setArray(const char *name, const double *data, int len)
     }
     else
     {
-        freeEntry(&table[idx]);
+        freeEntryInternal(&table[idx]);
         table[idx].type = SYM_ARRAY;
     }
 
@@ -130,53 +196,82 @@ void setArray(const char *name, const double *data, int len)
 
 int getArrayElem(const char *name, int idx, double *out)
 {
-    int i = findIndex(name);
-    if (i < 0)
+    SymEntry *sym = resolveArray(name);
+    if (!sym)
     {
         printf("Error: array '%s' not found\n", name);
         return 0;
     }
-    if (table[i].type != SYM_ARRAY)
+    if (sym->type != SYM_ARRAY)
     {
         printf("Type Error: '%s' is not an array\n", name);
         return 0;
     }
-    if (idx < 0 || idx >= table[i].v.arr.len)
+    if (idx < 0 || idx >= sym->v.arr.len)
     {
         printf("Index Error: '%s[%d]' out of bounds (len=%d)\n",
-               name, idx, table[i].v.arr.len);
+               name, idx, sym->v.arr.len);
         return 0;
     }
-    *out = table[i].v.arr.data[idx];
+    *out = sym->v.arr.data[idx];
     return 1;
 }
 
 int setArrayAt(const char *name, int index, double value)
 {
-    int i = findIndex(name);
-    if (i < 0)
+    SymEntry *sym = resolveArray(name);
+    if (!sym)
     {
         printf("Error: array '%s' not found\n", name);
         return 0;
     }
-    if (table[i].type != SYM_ARRAY)
+    if (sym->type != SYM_ARRAY)
     {
         printf("Type Error: '%s' is not an array\n", name);
         return 0;
     }
-    if (index < 0 || index >= table[i].v.arr.len)
+    if (index < 0 || index >= sym->v.arr.len)
     {
         printf("Index Error: '%s[%d]' out of bounds (len=%d)\n",
-               name, index, table[i].v.arr.len);
+               name, index, sym->v.arr.len);
         return 0;
     }
-    table[i].v.arr.data[index] = value;
+    sym->v.arr.data[index] = value;
     return 1;
+}
+
+void setFunc(const char *name, struct ASTNode *def)
+{
+    int idx = findIndex(name);
+    if (idx >= 0)
+    {
+        table[idx].type = SYM_FUNC;
+        table[idx].v.func.def = def;
+        return;
+    }
+    if (table_count >= MAX_SYMBOLS)
+    {
+        printf("Error: symbol table full\n");
+        return;
+    }
+    SymEntry *e = &table[table_count++];
+    strncpy(e->name, name, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    e->type = SYM_FUNC;
+    e->v.func.def = def;
+}
+
+struct ASTNode *getFunc(const char *name)
+{
+    int idx = findIndex(name);
+    if (idx < 0 || table[idx].type != SYM_FUNC)
+        return NULL;
+    return table[idx].v.func.def;
 }
 
 void clearSymbols(void)
 {
     for (int i = 0; i < table_count; ++i)
-        freeEntry(&table[i]);
+        freeEntryInternal(&table[i]);
     table_count = 0;
 }

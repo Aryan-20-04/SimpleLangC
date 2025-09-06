@@ -19,6 +19,8 @@ static struct ASTNode *parseFactor(const char **p);
 static struct ASTNode *parseIfStatement(const char **p);
 static struct ASTNode *parseFor(const char **p);
 static struct ASTNode *parseAssignmentNoSemi(const char **p); // helper for for-header assignments
+static struct ASTNode *parseFunctionDef(const char **p);
+static struct ASTNode *parseReturn(const char **p);
 
 // Helper functions
 static int expectTokenType(const char **p, TokenType t, const char *errMsg)
@@ -51,6 +53,13 @@ int peekTokenType(const char **src)
 static struct ASTNode *parseFactor(const char **p)
 {
     Token tk = getNextToken(p);
+
+    // Prevent keywords from being parsed as factors
+    if (tk.type == TOKEN_LET || tk.type == TOKEN_FUNC || tk.type == TOKEN_RETURN)
+    {
+        printf("Parser Error: Unexpected token '%s' in factor\n", tk.text);
+        return NULL;
+    }
 
     if (tk.type == TOKEN_NUM)
     {
@@ -470,11 +479,81 @@ static struct ASTNode *parseFor(const char **p)
     return node;
 }
 
+/*
+ * parseFunctionDef:
+ *   Assumes the TOKEN_FUNC keyword has already been consumed.
+ *   Parses: function <name> (param, ...) { ... }
+ */
+static struct ASTNode *parseFunctionDef(const char **p)
+{
+    Token nameTk = getNextToken(p);
+    if (nameTk.type != TOKEN_ID)
+    {
+        printf("Syntax Error: Expected function name\n");
+        return NULL;
+    }
+    struct ASTNode *func = newNode(NODE_FUNC_DEF);
+    strncpy(func->funcDef.funcName, nameTk.text, sizeof(func->funcDef.funcName) - 1);
+
+    // Parse parameter list
+    if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after function name"))
+        return NULL;
+
+    func->funcDef.params = NULL;
+    func->funcDef.paramCount = 0;
+
+    if (peekTokenType(p) != TOKEN_RPAREN)
+    {
+        while (1)
+        {
+            Token param = getNextToken(p);
+            if (param.type != TOKEN_ID)
+            {
+                printf("Syntax Error: Expected parameter name\n");
+                return NULL;
+            }
+            func->funcDef.params = realloc(func->funcDef.params, sizeof(char *) * (func->funcDef.paramCount + 1));
+            func->funcDef.params[func->funcDef.paramCount] = strdup(param.text);
+            func->funcDef.paramCount++;
+
+            Token sep = getNextToken(p);
+            if (sep.type == TOKEN_COMMA)
+                continue;
+            if (sep.type == TOKEN_RPAREN)
+                break;
+
+            printf("Syntax Error: Expected ',' or ')'\n");
+            return NULL;
+        }
+    }
+    else
+    {
+        getNextToken(p); // consume ')'
+    }
+
+    // Function body is a block
+    func->funcDef.body = parseBlock(p);
+    return func;
+}
+
+/*
+ * parseReturn:
+ *   Assumes the TOKEN_RETURN keyword has already been consumed.
+ *   Parses: return expr ;
+ */
+static struct ASTNode *parseReturn(const char **p)
+{
+    struct ASTNode *node = newNode(NODE_RETURN);
+    node->returnStmt.value = parseComparison(p);
+    if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after return"))
+        return NULL;
+    return node;
+}
+
 static struct ASTNode *parseStatement(const char **p)
 {
     const char *save = *p;
     Token tk = getNextToken(p);
-
     if (tk.type == TOKEN_LET)
     {
         Token name = getNextToken(p);
@@ -538,6 +617,16 @@ static struct ASTNode *parseStatement(const char **p)
     else if (tk.type == TOKEN_SEMI || tk.type == TOKEN_EOF)
     {
         return NULL;
+    }
+    else if (tk.type == TOKEN_FUNC)
+    {
+        // TOKEN_FUNC already consumed by getNextToken above; parse rest
+        return parseFunctionDef(p);
+    }
+    else if (tk.type == TOKEN_RETURN)
+    {
+        // TOKEN_RETURN already consumed; parse rest
+        return parseReturn(p);
     }
 
     // allow assignments and function-call statements starting with an identifier

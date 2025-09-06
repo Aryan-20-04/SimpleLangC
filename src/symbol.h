@@ -5,10 +5,15 @@
 
 #define MAX_SYMBOLS 1024
 
+/* forward declare ASTNode so symbol.h doesn't require ast.h include */
+struct ASTNode;
+
 typedef enum
 {
     SYM_NUM,
-    SYM_ARRAY
+    SYM_ARRAY,
+    SYM_FUNC,
+    SYM_ARRAY_REF
 } SymType;
 
 typedef struct
@@ -19,26 +24,49 @@ typedef struct
 
 typedef struct
 {
-    char name[32];
     SymType type;
+    char name[64];
     union
     {
         double num;
-        SymArray arr;
+        struct
+        {
+            double *data;
+            int len;
+        } arr;
+        struct
+        {
+            struct ASTNode *def;
+        } func;
+        const char *arrRefName; // for SYM_ARRAY_REF
     } v;
 } SymEntry;
 
 extern SymEntry table[MAX_SYMBOLS];
 extern int table_count;
 
-void setVar(const char *name, double value); // number
-double getVar(const char *name);             // number (0.0 if not found / not number)
+/* numeric variables */
+void setVar(const char *name, double value);      // set or update global variable
+double getVar(const char *name);                  // get numeric variable
+void setVarLocal(const char *name, double value); // always append new local variable
+void setLocalVar(const char *name, double value); // alias for setVarLocal
 
-void setArray(const char *name, const double *data, int len); // array (copies data)
-int getArrayElem(const char *name, int idx, double *out);     // 1 on success, 0 on error
-int isArray(const char *name);
+/* arrays */
+void setArray(const char *name, const double *data, int len); // create/copy array
+int getArrayElem(const char *name, int idx, double *out);     // read element
+int setArrayAt(const char *name, int idx, double value);      // write element
+int isArray(const char *name);                                // true if array or ref
 int getArrayLen(const char *name);
-int setArrayAt(const char *name, int index, double value);
-void clearSymbols(void); // frees arrays
+
+/* array reference (for passing arrays by reference) */
+void setVarLocalArrayRef(const char *localName, const char *existingArrayName);
+
+/* functions */
+void setFunc(const char *name, struct ASTNode *funcDef);
+struct ASTNode *getFunc(const char *name);
+
+/* symbol table management */
+void popSymbolsTo(int new_count);
+void clearSymbols(void);
 
 #endif

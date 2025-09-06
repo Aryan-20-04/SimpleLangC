@@ -133,6 +133,10 @@ Token getNextToken(const char **src)
             tk.type = TOKEN_IN;
         else if (strcmp(tk.text, "range") == 0)
             tk.type = TOKEN_RANGE;
+        else if (strcmp(tk.text, "function") == 0)
+            tk.type = TOKEN_FUNC;
+        else if (strcmp(tk.text, "return") == 0)
+            tk.type = TOKEN_RETURN;
         return tk;
     }
 
