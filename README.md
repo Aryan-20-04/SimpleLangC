@@ -61,6 +61,67 @@ for (let i=0; i<length(arr); i=i+1){
 print arr;      // [1, 2, 3, 4, 6, 7, 9, 10, 21, 22, 23, 90]
 print arr[2];   // 3
 ```
+### Functions
+```text
+
+function add(a, b) {
+    return a + b;
+}
+
+let result = add(5, 10);
+print result;
+```
+```text
+Explanation:
+
+function name(params) { ... } defines a function.
+
+Functions can return numeric values using return.
+
+Parameters are passed by value.
+```
+
+### Recursion
+```text
+Functions can call themselves:
+
+function factorial(n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+}
+
+print factorial(5); // 120
+```
+```text
+Explanation:
+
+Recursion works by maintaining a separate local scope in the symbol table.
+
+Each recursive call has its own parameter bindings.
+```
+
+#### Bubble Sort Example
+```text
+Sort an array using a function:
+
+let arr = [40, 10, 20, 12, 43, 9, 86, 23];
+print arr;
+
+function Bubble(arr) {
+    for (let i = 0; i < length(arr); i = i + 1) {
+        for (let j = 0; j < length(arr) - i - 1; j = j + 1) {
+            if (arr[j] > arr[j + 1]) {
+                let t = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = t;
+            }
+        }
+    }
+}
+
+Bubble(arr);
+print arr;
+```
 ### Build & Run
 
 #### Prebuilt
