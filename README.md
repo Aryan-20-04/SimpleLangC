@@ -154,7 +154,10 @@ sudo make uninstall
 ### Run (at any folder)
 
 ```text
-Do have a .slc file extension
+Make sure to have a .slc file extension
+```
+
+```bash
 slangc filename.slc
 ```
 
