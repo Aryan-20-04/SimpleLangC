@@ -8,12 +8,15 @@ Supports variables, arithmetic, control flow, arrays, and built-in functions lik
 ## ✨ Features
 
 ### Variables & Arithmetic
+
 ```text
 let x = 5;
 let y = 10;
 print x + y;   // 15
 ```
+
 ### If Statements
+
 ```text
 let n = 7;
 if (n > 5) {
@@ -24,6 +27,7 @@ if (n > 5) {
 ```
 
 ### For Loops
+
 ```text
 for (let i=0; i<5; i=i+1) {
     print i;
@@ -31,6 +35,7 @@ for (let i=0; i<5; i=i+1) {
 ```
 
 ### Arrays
+
 ```text
 let arr = [10, 23, 2, 21];
 print arr;     // [10, 23, 2, 21]
@@ -38,7 +43,9 @@ print arr[2];  // 2
 Arrays are 0-based indexed.
 Use length(arr) to get the number of elements.
 ```
+
 ### Array Assignment
+
 ```text
 let arr = [1, 2, 3];
 arr[1] = 99;
@@ -61,7 +68,9 @@ for (let i=0; i<length(arr); i=i+1){
 print arr;      // [1, 2, 3, 4, 6, 7, 9, 10, 21, 22, 23, 90]
 print arr[2];   // 3
 ```
+
 ### Functions
+
 ```text
 
 function add(a, b) {
@@ -71,6 +80,7 @@ function add(a, b) {
 let result = add(5, 10);
 print result;
 ```
+
 ```text
 Explanation:
 
@@ -82,6 +92,7 @@ Parameters are passed by value.
 ```
 
 ### Recursion
+
 ```text
 Functions can call themselves:
 
@@ -92,6 +103,7 @@ function factorial(n) {
 
 print factorial(5); // 120
 ```
+
 ```text
 Explanation:
 
@@ -101,6 +113,7 @@ Each recursive call has its own parameter bindings.
 ```
 
 #### Bubble Sort Example
+
 ```text
 Sort an array using a function:
 
@@ -122,34 +135,53 @@ function Bubble(arr) {
 Bubble(arr);
 print arr;
 ```
-### Build & Run
 
-#### Prebuilt
+### Build & Run (Only Linux)
+
+#### Install
+
 ```text
-make          # build the interpreter
-make run      # run sample program
+make all      # build the interpreter
+sudo make install      # run sample program
 ```
-#### Manually:
+
+#### Uninstall
+
 ```text
-gcc -Wall -Wextra -g -o mylang src/*.c
-./mylang programs/program.txt
+sudo make uninstall
 ```
+
+### Run (at any folder)
+
+```text
+Do have a .slc file extension
+slangc filename.slc
+```
+
 ### Language Grammar (Simplified)
+
 #### Variables
+
 ```text
 let x = 10;
 let arr = [1, 2, 3];
 ```
+
 #### Expressions
+
 ```text
 +, -, *, /, ==, !=, <, <=, >, >=
 ```
+
 #### Control Flow
+
 ```text
 if (expr) { ... } else { ... }
 for (init; cond; incr) { ... }
 ```
+
 #### Arrays
+
 ```text
 arr[i] = value;
 print arr;       # pretty-prints entire array
@@ -158,6 +190,7 @@ length(arr);
 ```
 
 ### Notes & Limitations
+
 ```text
 Arrays are numeric only (no strings inside arrays yet).
 
@@ -169,6 +202,7 @@ Strings must use double quotes "text".
 ```
 
 ### Example Program
+
 ```text
 programs/program.txt
 
@@ -189,15 +223,20 @@ print arr;
 print "3rd Element:";
 print arr[2];
 ```
+
 ### Output
+
 ```text
 Sorted Array:
 [1, 2, 3, 4, 6, 7, 9, 10, 21, 22, 23, 90]
 3rd Element:
 3
 ```
+
 ### Author
+
 ```text
 Built as a toy interpreter project in C to learn parsing, ASTs, and interpreters.
 ```
+
 ### By- Aryan Sinha

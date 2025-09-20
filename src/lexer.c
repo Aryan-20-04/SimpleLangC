@@ -6,9 +6,11 @@
 
 Token getNextToken(const char **src)
 {
-    // Skip whitespace
-    while (**src && isspace(**src))
+    // Skip whitespace and comments
+    while (**src && isspace(**src)){
         (*src)++;
+        continue;
+    }
 
     if (**src == '\0')
         return (Token){TOKEN_EOF, ""};

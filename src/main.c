@@ -1,6 +1,6 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include "parser.h"
 #include "interpreter.h"
 #include "symbol.h"
@@ -9,9 +9,16 @@
 
 int main(int argc, char **argv)
 {
-    const char *fname = "programs/program.txt";
+    const char *fname = NULL;
     if (argc >= 2)
         fname = argv[1];
+
+    const char *ext = strrchr(fname, '.');
+    if (!ext || strcmp(ext, ".slc") != 0)
+    {
+        printf("Error: File must have .slc extension\n");
+        return 1;
+    }
 
     FILE *f = fopen(fname, "rb");
     if (!f)
@@ -45,12 +52,9 @@ int main(int argc, char **argv)
         free(src);
         return 1;
     }
-
-    // execute and time
-    printf("Compiling...\n");
     execAST(program);
     flushOutput();
-    
+
     // cleanup
     freeNode(program);
     clearSymbols();
