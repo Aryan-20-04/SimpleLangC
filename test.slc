@@ -1,22 +1,5 @@
-print "Hello from slangc!";
-
-let x = 7;
-let y = 35;
-print "y";
-
-print "x + y = ", x + y;
-
-let arr = [5, 2, 9, 1, 6];
-print "Original array:", arr;
-
-for (let i = 0; i < length(arr); i = i + 1) {
-    for (let j = 0; j < length(arr) - i - 1; j = j + 1) {
-        if (arr[j] > arr[j + 1]) {
-            let temp = arr[j];
-            arr[j] = arr[j + 1];
-            arr[j + 1] = temp;
-        }
-    }
+let i = 0;
+while (i < 5) {
+    print i;
+    i = i + 1;
 }
-
-print "Sorted array:", arr;

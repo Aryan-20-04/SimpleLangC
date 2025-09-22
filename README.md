@@ -5,7 +5,7 @@ Supports variables, arithmetic, control flow, arrays, and built-in functions lik
 
 ---
 
-## ✨ Features
+## Features
 
 ### Variables & Arithmetic
 
@@ -17,6 +17,11 @@ print x + y;   // 15
 
 ### If Statements
 
+````text
+if(condition){
+    body;
+}
+
 ```text
 let n = 7;
 if (n > 5) {
@@ -24,9 +29,15 @@ if (n > 5) {
 } else {
     print "Less or equal to 5";
 }
-```
+````
 
 ### For Loops
+
+```text
+if(condition){
+    body;
+}
+```
 
 ```text
 for (let i=0; i<5; i=i+1) {
@@ -34,7 +45,29 @@ for (let i=0; i<5; i=i+1) {
 }
 ```
 
+### While Loop Syntax
+
+```text
+while (condition) {
+    body;
+}
+```
+
+### Example Program
+
+```text
+let i = 0;
+while (i < 5) {
+    print i;
+    i = i + 1;
+}
+```
+
 ### Arrays
+
+```text
+let arrayName = [arrayBody];
+```
 
 ```text
 let arr = [10, 23, 2, 21];
@@ -71,6 +104,12 @@ print arr[2];   // 3
 
 ### Functions
 
+````text
+function (parameters){
+    function body;
+}
+```
+
 ```text
 
 function add(a, b) {
@@ -79,7 +118,7 @@ function add(a, b) {
 
 let result = add(5, 10);
 print result;
-```
+````
 
 ```text
 Explanation:
@@ -97,7 +136,9 @@ Parameters are passed by value.
 Functions can call themselves:
 
 function factorial(n) {
-    if (n <= 1) return 1;
+    if (n <= 1) {
+        return 1;
+    }
     return n * factorial(n - 1);
 }
 
@@ -141,8 +182,8 @@ print arr;
 #### Install
 
 ```text
-make all      # build the interpreter
-sudo make install      # run sample program
+make all               # build the interpreter
+sudo make install      # install slangc on your linux machine
 ```
 
 #### Uninstall

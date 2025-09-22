@@ -131,6 +131,8 @@ Token getNextToken(const char **src)
             tk.type = TOKEN_ELSEIF;
         else if (strcmp(tk.text, "for") == 0)
             tk.type = TOKEN_FOR;
+        else if (strcmp(tk.text, "while") == 0)
+            tk.type=TOKEN_WHILE;
         else if (strcmp(tk.text, "in") == 0)
             tk.type = TOKEN_IN;
         else if (strcmp(tk.text, "range") == 0)

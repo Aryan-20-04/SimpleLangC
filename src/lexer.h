@@ -11,6 +11,7 @@ typedef enum
     TOKEN_ELSE,
     TOKEN_ELSEIF,
     TOKEN_FOR,
+    TOKEN_WHILE,
     TOKEN_IN,
     TOKEN_RANGE,
     TOKEN_EQUAL, // = (assignment)

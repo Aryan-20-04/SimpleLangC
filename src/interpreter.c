@@ -314,6 +314,23 @@ static ReturnStatus execWithReturn(struct ASTNode *node)
         setFunc(node->funcDef.funcName, node);
         break;
 
+    case NODE_WHILE:
+    {
+        struct ASTNode *condNode = node->WhileStmt.cond;
+        struct ASTNode *bodyNode = node->WhileStmt.body;
+
+        while (condNode && evalExpr(condNode) != 0.0)
+        {
+            if (bodyNode)
+            {
+                ReturnStatus child = execWithReturn(bodyNode);
+                if (child.hasReturn)
+                    return child;
+            }
+        }
+        break;
+    }
+
     default:
         // For unhandled nodes, fallback to execAST (non-returning)
         execAST(node);
@@ -450,6 +467,18 @@ void execAST(struct ASTNode *node)
         break;
     }
 
+    case NODE_WHILE:
+    {
+        struct ASTNode *condNode = node->WhileStmt.cond;
+        struct ASTNode *bodyNode = node->WhileStmt.body;
+
+        while (condNode && evalExpr(condNode) != 0.0)
+        {
+            if (bodyNode)
+                execAST(bodyNode);
+        }
+        break;
+    }
     case NODE_ASSIGN:
     {
         struct ASTNode *rhs = node->assign.value;

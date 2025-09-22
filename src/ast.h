@@ -13,6 +13,7 @@ typedef enum
     NODE_BLOCK,
     NODE_IF,
     NODE_FOR,
+    NODE_WHILE,
     NODE_STR,
     NODE_ARRAY,
     NODE_ARR_ACCESS,
@@ -78,7 +79,11 @@ typedef struct ASTNode
             struct ASTNode *incr;
             struct ASTNode *body;
         } forstmt;
-
+        struct
+        {
+            struct ASTNode *cond;
+            struct ASTNode *body;
+        } WhileStmt;
         struct
         {
             struct ASTNode **exprs;

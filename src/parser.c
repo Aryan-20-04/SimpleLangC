@@ -55,7 +55,7 @@ static struct ASTNode *parseFactor(const char **p)
     Token tk = getNextToken(p);
 
     // Prevent keywords from being parsed as factors
-    if (tk.type == TOKEN_LET || tk.type == TOKEN_FUNC || tk.type == TOKEN_RETURN)
+    if (tk.type == TOKEN_LET || tk.type == TOKEN_FUNC || tk.type == TOKEN_RETURN || tk.type == TOKEN_WHILE)
     {
         printf("Parser Error: Unexpected token '%s' in factor\n", tk.text);
         return NULL;
@@ -479,6 +479,27 @@ static struct ASTNode *parseFor(const char **p)
     return node;
 }
 
+static struct ASTNode *parseWhile(const char **p)
+{
+    if (!expectTokenType(p, TOKEN_LPAREN, "Expected '(' after while"))
+        return NULL;
+
+    struct ASTNode *cond = parseComparison(p);
+    if (!cond)
+        return NULL;
+
+    if (!expectTokenType(p, TOKEN_RPAREN, "Expected ')' after while condition."))
+        return NULL;
+
+    struct ASTNode *body = parseBlock(p);
+    if (!body)
+        return NULL;
+
+    struct ASTNode *node = newNode(NODE_WHILE);
+    node->WhileStmt.cond = cond;
+    node->WhileStmt.body = body;
+    return node;
+}
 /*
  * parseFunctionDef:
  *   Assumes the TOKEN_FUNC keyword has already been consumed.
@@ -554,6 +575,13 @@ static struct ASTNode *parseStatement(const char **p)
 {
     const char *save = *p;
     Token tk = getNextToken(p);
+
+    if (tk.type == TOKEN_LBRACE)
+    {
+        *p = save;
+        return parseBlock(p);
+    }
+
     if (tk.type == TOKEN_LET)
     {
         Token name = getNextToken(p);
@@ -562,8 +590,10 @@ static struct ASTNode *parseStatement(const char **p)
             printf("Parser Error: Expected identifier after let\n");
             return NULL;
         }
+
         if (!expectTokenType(p, TOKEN_EQUAL, "Expected '=' after variable name"))
             return NULL;
+
         struct ASTNode *val = parseComparison(p);
         if (!expectTokenType(p, TOKEN_SEMI, "Expected ';' after assignment"))
             return NULL;
@@ -614,13 +644,16 @@ static struct ASTNode *parseStatement(const char **p)
     {
         return parseFor(p);
     }
+    else if (tk.type == TOKEN_WHILE)
+    {
+        return parseWhile(p);
+    }
     else if (tk.type == TOKEN_SEMI || tk.type == TOKEN_EOF)
     {
         return NULL;
     }
     else if (tk.type == TOKEN_FUNC)
     {
-        // TOKEN_FUNC already consumed by getNextToken above; parse rest
         return parseFunctionDef(p);
     }
     else if (tk.type == TOKEN_RETURN)
